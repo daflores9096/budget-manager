@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+frontend/node_modules
+frontend/dist
+_xlsx_extract
+_tmp_gastos.zip
+api/config.local.php
+.env
+.env.*
+*.md

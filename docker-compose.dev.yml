@@ -1,0 +1,10 @@
+# Uso (después de generar el build local una vez):
+#   cd frontend && npm run build && cd ..
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Cada cambio en el front: vuelve a ejecutar `npm run build` en frontend/ y recarga el navegador.
+
+services:
+  web:
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro

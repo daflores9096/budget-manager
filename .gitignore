@@ -1,0 +1,9 @@
+node_modules/
+dist/
+vendor/
+.env
+.env.local
+api/config.local.php
+_xlsx_extract/
+_tmp_gastos.zip
+.DS_Store
