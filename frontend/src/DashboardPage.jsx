@@ -47,6 +47,15 @@ function dailySpendingSeries(expenses, year, month) {
   return arr;
 }
 
+function sumSpentOnDate(expenses, isoDate) {
+  let total = 0;
+  for (const e of expenses || []) {
+    if (e?.date !== isoDate) continue;
+    total += Number(e.actual) || 0;
+  }
+  return total;
+}
+
 function SpendingTrendChart({ series }) {
   const w = 320;
   const h = 110;
@@ -83,6 +92,62 @@ function SpendingTrendChart({ series }) {
   );
 }
 
+function DonutChart({ rows }) {
+  const data = rows
+    .filter(([, amt]) => (Number(amt) || 0) > 0)
+    .slice(0, 6)
+    .map(([name, amt]) => ({ name, amt: Number(amt) || 0 }));
+  const total = data.reduce((acc, x) => acc + x.amt, 0);
+
+  const size = 168;
+  const stroke = 22;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const cx = size / 2;
+  const cy = size / 2;
+  const colors = ['#7c3aed', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe', '#f5f3ff'];
+
+  let offset = 0;
+  const segs =
+    total > 0
+      ? data.map((d, idx) => {
+          const frac = d.amt / total;
+          const len = Math.max(0, frac * c);
+          const dash = `${len} ${Math.max(0, c - len)}`;
+          const seg = (
+            <circle
+              key={d.name}
+              cx={cx}
+              cy={cy}
+              r={r}
+              fill="none"
+              stroke={colors[idx % colors.length]}
+              strokeWidth={stroke}
+              strokeDasharray={dash}
+              strokeDashoffset={-offset}
+              strokeLinecap="butt"
+            />
+          );
+          offset += len;
+          return seg;
+        })
+      : null;
+
+  return (
+    <div className="dash-donut">
+      <svg className="dash-donut-svg" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Spending by category">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#ede9fe" strokeWidth={stroke} />
+        <g transform={`rotate(-90 ${cx} ${cy})`}>{segs}</g>
+        <circle cx={cx} cy={cy} r={r - stroke / 2 + 1} fill="#ffffff" />
+      </svg>
+      <div className="dash-donut-legend" aria-hidden>
+        <span className="dash-donut-dot" />
+        <span className="dash-donut-label">{data[0]?.name ?? '—'}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage({
   months,
   selectedId,
@@ -95,6 +160,7 @@ export default function DashboardPage({
   setNewMonth,
   onCreateMonth,
   onDeleteMonth,
+  onOpenCreateMonth,
   money,
   summaryClass,
   monthNames,
@@ -116,6 +182,8 @@ export default function DashboardPage({
   const totalSpent = detail?.summary?.total_spent ?? 0;
   const totalIncome = detail?.summary?.total_income ?? 0;
   const remaining = detail?.summary?.remaining ?? 0;
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todaySpent = useMemo(() => sumSpentOnDate(expenses, todayIso), [expenses, todayIso]);
 
   const insight = useMemo(() => {
     if (!detail) {
@@ -168,10 +236,10 @@ export default function DashboardPage({
             <PiggyBank className="dash-kicker-icon" size={18} strokeWidth={2} aria-hidden />
             <span>Smart personal finance</span>
           </div>
-          <div className="dashboard-meta">{expenseCount} gastos registrados</div>
+          <div className="dashboard-meta">{expenseCount} expense{expenseCount === 1 ? '' : 's'} saved</div>
         </div>
         <h1 className="dashboard-title">Dashboard</h1>
-        <p className="dashboard-subtitle">Resumen del mes: categorías, tendencia diaria, total del periodo y saldo frente a tus ingresos.</p>
+        <p className="dashboard-subtitle">Month at a glance: categories, daily trend, today&apos;s spending and budget.</p>
       </header>
 
       <section className="dash-card dash-period-card">
@@ -205,20 +273,9 @@ export default function DashboardPage({
           </div>
         </div>
         <div className="dash-period-actions">
-          <form className="dash-inline-form" onSubmit={onCreateMonth}>
-            <span className="dash-muted dash-inline-label">Nuevo mes</span>
-            <input className="dash-input-sm mono" type="number" min="2000" max="2100" value={newYear} onChange={(e) => setNewYear(Number(e.target.value))} />
-            <select className="dash-select dash-select--sm" value={newMonth} onChange={(e) => setNewMonth(Number(e.target.value))}>
-              {monthNames.map((name, idx) => (
-                <option key={name} value={idx + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <button className="dash-btn dash-btn--primary" type="submit" disabled={loading}>
-              Crear
-            </button>
-          </form>
+          <button type="button" className="dash-btn dash-btn--primary" onClick={onOpenCreateMonth} disabled={loading}>
+            Crear mes
+          </button>
           <button type="button" className="dash-btn dash-btn--ghost" disabled={!selectedId || loading} onClick={onDeleteMonth}>
             Eliminar mes
           </button>
@@ -237,20 +294,9 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
                   <PieChart size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Gasto por categoría</h3>
+                <h3 className="dash-tile-title">Spending by category</h3>
               </div>
-              {!hasCategorySpend ? (
-                <p className="dash-tile-empty">No hay gastos con monto en este periodo.</p>
-              ) : (
-                <ul className="dash-cat-list">
-                  {categoryRows.slice(0, 6).map(([cat, amt]) => (
-                    <li key={cat} className="dash-cat-row">
-                      <span className="dash-cat-name">{cat}</span>
-                      <span className="dash-cat-amt mono">{money(amt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {!hasCategorySpend ? <p className="dash-tile-empty">No spending yet for this period.</p> : <DonutChart rows={categoryRows} />}
             </article>
 
             <article className="dash-tile dash-tile--white">
@@ -258,7 +304,7 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
                   <LineChart size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Tendencia de gastos</h3>
+                <h3 className="dash-tile-title">Spending trend</h3>
               </div>
               <SpendingTrendChart series={series} />
             </article>
@@ -268,10 +314,11 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--amber" aria-hidden>
                   <Calendar size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Total del periodo</h3>
+                <h3 className="dash-tile-title">Period total</h3>
               </div>
               <p className="dash-big-number mono">{money(totalSpent)}</p>
-              <p className="dash-tile-caption">Suma de todos los gastos (reales) registrados entre las fechas del periodo seleccionado.</p>
+              <p className="dash-tile-caption">All expenses between the selected start and end dates.</p>
+              <p className="dash-tile-caption dash-tile-caption--today">Today (local date): <span className="mono">{money(todaySpent)}</span></p>
             </article>
 
             <article className="dash-tile dash-tile--green">
@@ -279,19 +326,13 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--green" aria-hidden>
                   <Wallet size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Saldo del mes</h3>
+                <h3 className="dash-tile-title">Monthly budget remaining</h3>
               </div>
-              {totalIncome <= 0 ? (
-                <>
-                  <p className="dash-big-number dash-big-number--muted">Sin ingresos</p>
-                  <p className="dash-tile-caption">Registra ingresos para comparar gastos frente a lo que entra y ver cuánto te queda.</p>
-                </>
-              ) : (
-                <>
-                  <p className={`dash-big-number mono dash-balance dash-balance--${summaryClass(remaining)}`}>{money(remaining)}</p>
-                  <p className="dash-tile-caption">Ingresos del mes menos total gastado. Positivo indica margen disponible.</p>
-                </>
-              )}
+              <p className={`dash-big-number mono dash-balance dash-balance--${summaryClass(remaining)}`}>{money(remaining)}</p>
+              <p className="dash-tile-caption">Always uses this calendar month as your monthly budget.</p>
+              <p className="dash-tile-caption">
+                Budget: <span className="mono">{money(totalIncome)}</span> • Spent this month: <span className="mono">{money(totalSpent)}</span>
+              </p>
             </article>
           </div>
 

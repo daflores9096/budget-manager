@@ -31,6 +31,18 @@ const NAV = [
       </svg>
     ),
   },
+  {
+    id: 'categorias',
+    label: 'Categorías',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M4 6h16" />
+        <path d="M4 12h16" />
+        <path d="M4 18h16" />
+        <path d="M7 6v12" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ active, onNavigate, open, onClose }) {

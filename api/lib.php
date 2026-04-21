@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const ALLOWED_CATEGORIES = [
+const DEFAULT_CATEGORIES = [
     'Alimentación',
     'Salud',
     'Transporte',
@@ -101,8 +101,60 @@ function cors(): void
 
 function require_category(string $category): void
 {
-    if (!in_array($category, ALLOWED_CATEGORIES, true)) {
+    $category = normalize_category_name($category);
+    if ($category === '') {
         json_response(['error' => 'Categoría no válida'], 422);
         exit;
     }
+
+    // Prefer DB-backed categories (new behavior).
+    try {
+        ensure_default_categories_exist();
+        $stmt = db()->prepare('SELECT 1 FROM categories WHERE name = ?');
+        $stmt->execute([$category]);
+        if ($stmt->fetchColumn()) {
+            return;
+        }
+    } catch (Throwable $e) {
+        // Legacy fallback (if categories table does not exist).
+        if (in_array($category, DEFAULT_CATEGORIES, true)) {
+            return;
+        }
+    }
+
+    json_response(['error' => 'Categoría no válida'], 422);
+    exit;
+}
+
+function ensure_default_categories_exist(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    try {
+        $stmt = db()->query('SELECT COUNT(*) AS c FROM categories');
+        $row = $stmt->fetch();
+        $count = isset($row['c']) ? (int) $row['c'] : 0;
+        if ($count > 0) {
+            return;
+        }
+        $ins = db()->prepare('INSERT IGNORE INTO categories (name) VALUES (?)');
+        foreach (DEFAULT_CATEGORIES as $name) {
+            $ins->execute([$name]);
+        }
+    } catch (Throwable $e) {
+        // ignore
+    }
+}
+
+function normalize_category_name(string $name): string
+{
+    $name = preg_replace('/\s+/', ' ', $name);
+    if ($name === null) {
+        return '';
+    }
+    return trim($name);
 }

@@ -7,6 +7,13 @@ CREATE DATABASE IF NOT EXISTS budget_manager
 
 USE budget_manager;
 
+CREATE TABLE IF NOT EXISTS categories (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(64) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_category_name (name)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS budget_months (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   year SMALLINT UNSIGNED NOT NULL,
@@ -40,3 +47,13 @@ CREATE TABLE IF NOT EXISTS expenses (
     REFERENCES budget_months (id) ON DELETE CASCADE,
   KEY idx_expenses_month_type (budget_month_id, expense_type)
 ) ENGINE=InnoDB;
+
+INSERT IGNORE INTO categories (name) VALUES
+  ('Alimentación'),
+  ('Salud'),
+  ('Transporte'),
+  ('Deudas/Créditos'),
+  ('Mascotas'),
+  ('Varios'),
+  ('Servicios Hogar'),
+  ('Entretenimiento');

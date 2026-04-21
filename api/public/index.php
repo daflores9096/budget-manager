@@ -22,8 +22,114 @@ try {
     }
 
     if ($path === '/api/categories' && $method === 'GET') {
-        json_response(['categories' => ALLOWED_CATEGORIES]);
+        ensure_default_categories_exist();
+        try {
+            $stmt = db()->query('SELECT id, name FROM categories ORDER BY name ASC');
+            $items = $stmt->fetchAll();
+            foreach ($items as &$r) {
+                $r['id'] = (int) $r['id'];
+                $r['name'] = (string) $r['name'];
+            }
+            unset($r);
+            $names = array_map(static fn(array $r): string => (string) $r['name'], $items);
+            json_response(['categories' => $names, 'category_items' => $items]);
+        } catch (Throwable $e) {
+            // Legacy fallback
+            json_response(['categories' => DEFAULT_CATEGORIES, 'category_items' => []]);
+        }
         exit;
+    }
+
+    if ($path === '/api/categories' && $method === 'POST') {
+        ensure_default_categories_exist();
+        $body = read_json_body();
+        $name = normalize_category_name((string) ($body['name'] ?? ''));
+        if ($name === '' || mb_strlen($name) > 64) {
+            json_response(['error' => 'name inválido'], 422);
+            exit;
+        }
+        try {
+            $stmt = db()->prepare('INSERT INTO categories (name) VALUES (?)');
+            $stmt->execute([$name]);
+            json_response(['id' => (int) db()->lastInsertId(), 'name' => $name], 201);
+        } catch (PDOException $e) {
+            if ((string) $e->getCode() === '23000') {
+                json_response(['error' => 'Esa categoría ya existe'], 409);
+                exit;
+            }
+            throw $e;
+        }
+        exit;
+    }
+
+    if (preg_match('#^/api/categories/(\d+)$#', $path, $m)) {
+        ensure_default_categories_exist();
+        $id = (int) $m[1];
+
+        if ($method === 'PATCH') {
+            $body = read_json_body();
+            $name = normalize_category_name((string) ($body['name'] ?? ''));
+            if ($name === '' || mb_strlen($name) > 64) {
+                json_response(['error' => 'name inválido'], 422);
+                exit;
+            }
+
+            $row = db()->prepare('SELECT id, name FROM categories WHERE id = ?');
+            $row->execute([$id]);
+            $existing = $row->fetch();
+            if (!$existing) {
+                json_response(['error' => 'Categoría no encontrada'], 404);
+                exit;
+            }
+            $oldName = (string) $existing['name'];
+
+            try {
+                $upd = db()->prepare('UPDATE categories SET name = ? WHERE id = ?');
+                $upd->execute([$name, $id]);
+            } catch (PDOException $e) {
+                if ((string) $e->getCode() === '23000') {
+                    json_response(['error' => 'Esa categoría ya existe'], 409);
+                    exit;
+                }
+                throw $e;
+            }
+
+            // Keep existing expenses pointing to the renamed category.
+            $exp = db()->prepare('UPDATE expenses SET category = ? WHERE category = ?');
+            $exp->execute([$name, $oldName]);
+
+            json_response(['ok' => true, 'id' => $id, 'name' => $name]);
+            exit;
+        }
+
+        if ($method === 'DELETE') {
+            $row = db()->prepare('SELECT id, name FROM categories WHERE id = ?');
+            $row->execute([$id]);
+            $existing = $row->fetch();
+            if (!$existing) {
+                json_response(['error' => 'Categoría no encontrada'], 404);
+                exit;
+            }
+            $name = (string) $existing['name'];
+            if ($name === 'Varios') {
+                json_response(['error' => 'No se puede eliminar la categoría Varios'], 422);
+                exit;
+            }
+
+            // Reassign expenses to 'Varios' on delete.
+            $fallback = 'Varios';
+            $ensure = db()->prepare('INSERT IGNORE INTO categories (name) VALUES (?)');
+            $ensure->execute([$fallback]);
+
+            $exp = db()->prepare('UPDATE expenses SET category = ? WHERE category = ?');
+            $exp->execute([$fallback, $name]);
+
+            $del = db()->prepare('DELETE FROM categories WHERE id = ?');
+            $del->execute([$id]);
+
+            json_response(['ok' => true]);
+            exit;
+        }
     }
 
     if ($path === '/api/months' && $method === 'GET') {
