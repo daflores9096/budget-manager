@@ -15,6 +15,26 @@ $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
 try {
+    $routesDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'routes' . DIRECTORY_SEPARATOR;
+
+    if ($path === '/api/health') {
+        $handler = require $routesDir . 'health.php';
+        $handler($method);
+        exit;
+    }
+
+    if (str_starts_with($path, '/api/categories')) {
+        $handler = require $routesDir . 'categories.php';
+        $handler($method, $path);
+        // If handler didn't exit, continue to legacy section.
+    }
+
+    if (str_starts_with($path, '/api/recurring-fixed')) {
+        $handler = require $routesDir . 'recurring_fixed.php';
+        $handler($method, $path);
+        exit;
+    }
+
     if ($path === '/api/health' && $method === 'GET') {
         db()->query('SELECT 1');
         json_response(['ok' => true]);
@@ -177,6 +197,66 @@ try {
         exit;
     }
 
+    if ($path === '/api/transactions' && $method === 'GET') {
+        $qs = $_GET ?? [];
+        $start = (string) ($qs['start'] ?? '');
+        $end = (string) ($qs['end'] ?? '');
+        if ($start === '' || $end === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $end)) {
+            json_response(['error' => 'start y end requeridos (YYYY-MM-DD)'], 422);
+            exit;
+        }
+        if ($start > $end) {
+            json_response(['error' => 'start no puede ser mayor que end'], 422);
+            exit;
+        }
+
+        $inc = db()->prepare(
+            'SELECT id, entry_date AS date, description, amount
+             FROM incomes
+             WHERE entry_date BETWEEN ? AND ?
+             ORDER BY entry_date ASC, id ASC'
+        );
+        $inc->execute([$start, $end]);
+        $incomes = $inc->fetchAll();
+        foreach ($incomes as &$i) {
+            $i['id'] = (int) $i['id'];
+            $i['amount'] = (float) $i['amount'];
+        }
+        unset($i);
+
+        $exp = db()->prepare(
+            'SELECT id, expense_type AS type, entry_date AS date, description,
+                    expected_amount AS expected, actual_amount AS actual, category, paid
+             FROM expenses
+             WHERE entry_date BETWEEN ? AND ?
+             ORDER BY entry_date ASC, id ASC'
+        );
+        $exp->execute([$start, $end]);
+        $expenses = $exp->fetchAll();
+        foreach ($expenses as &$e) {
+            $e['id'] = (int) $e['id'];
+            $e['expected'] = $e['expected'] === null ? null : (float) $e['expected'];
+            $e['actual'] = (float) $e['actual'];
+            $e['paid'] = (bool) (int) $e['paid'];
+        }
+        unset($e);
+
+        $ti = array_sum(array_column($incomes, 'amount'));
+        $ts = array_sum(array_column($expenses, 'actual'));
+
+        json_response([
+            'range' => ['start' => $start, 'end' => $end],
+            'summary' => [
+                'total_income' => $ti,
+                'total_spent' => $ts,
+                'remaining' => $ti - $ts,
+            ],
+            'incomes' => $incomes,
+            'expenses' => $expenses,
+        ]);
+        exit;
+    }
+
     if (preg_match('#^/api/months/(\d+)$#', $path, $m)) {
         $monthId = (int) $m[1];
 
@@ -262,6 +342,28 @@ try {
         $stmt = db()->prepare(
             'INSERT INTO incomes (budget_month_id, entry_date, description, amount) VALUES (?,?,?,?)'
         );
+        $stmt->execute([$monthId, $date, $description, $amount]);
+        json_response(['id' => (int) db()->lastInsertId()], 201);
+        exit;
+    }
+
+    if ($path === '/api/incomes' && $method === 'POST') {
+        $body = read_json_body();
+        $date = (string) ($body['date'] ?? '');
+        $description = trim((string) ($body['description'] ?? ''));
+        $amount = isset($body['amount']) ? (float) $body['amount'] : 0.0;
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            json_response(['error' => 'date inválida (YYYY-MM-DD)'], 422);
+            exit;
+        }
+        if ($amount <= 0) {
+            json_response(['error' => 'amount debe ser > 0'], 422);
+            exit;
+        }
+        [$y, $mth] = array_map('intval', explode('-', $date, 3));
+        $monthId = get_or_create_month_id($y, $mth);
+
+        $stmt = db()->prepare('INSERT INTO incomes (budget_month_id, entry_date, description, amount) VALUES (?,?,?,?)');
         $stmt->execute([$monthId, $date, $description, $amount]);
         json_response(['id' => (int) db()->lastInsertId()], 201);
         exit;
@@ -358,6 +460,51 @@ try {
         exit;
     }
 
+    if ($path === '/api/expenses' && $method === 'POST') {
+        $body = read_json_body();
+        $type = (string) ($body['type'] ?? 'variable');
+        if ($type !== 'fixed' && $type !== 'variable') {
+            json_response(['error' => 'type debe ser fixed o variable'], 422);
+            exit;
+        }
+        $date = (string) ($body['date'] ?? '');
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            json_response(['error' => 'date inválida (YYYY-MM-DD)'], 422);
+            exit;
+        }
+        $description = trim((string) ($body['description'] ?? ''));
+        $category = (string) ($body['category'] ?? 'Varios');
+        require_category($category);
+
+        $expected = null;
+        if (array_key_exists('expected', $body) && $body['expected'] !== null && $body['expected'] !== '') {
+            $expected = (float) $body['expected'];
+        }
+
+        $actual = isset($body['actual']) ? (float) $body['actual'] : 0.0;
+        if ($actual < 0) {
+            json_response(['error' => 'actual no puede ser negativo'], 422);
+            exit;
+        }
+
+        $paid = !empty($body['paid']) ? 1 : 0;
+        if ($type === 'variable') {
+            $expected = null;
+            $paid = 0;
+        }
+
+        [$y, $mth] = array_map('intval', explode('-', $date, 3));
+        $monthId = get_or_create_month_id($y, $mth);
+
+        $stmt = db()->prepare(
+            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid)
+             VALUES (?,?,?,?,?,?,?,?)'
+        );
+        $stmt->execute([$monthId, $type, $date, $description, $expected, $actual, $category, $paid]);
+        json_response(['id' => (int) db()->lastInsertId()], 201);
+        exit;
+    }
+
     if (preg_match('#^/api/expenses/(\d+)$#', $path, $m)) {
         $id = (int) $m[1];
         if ($method === 'PATCH') {
@@ -442,4 +589,22 @@ function ensure_month_exists(int $monthId): void
         json_response(['error' => 'Mes no encontrado'], 404);
         exit;
     }
+}
+
+function get_or_create_month_id(int $year, int $month): int
+{
+    if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12) {
+        json_response(['error' => 'year o month inválidos'], 422);
+        exit;
+    }
+    $ins = db()->prepare('INSERT IGNORE INTO budget_months (year, month) VALUES (?, ?)');
+    $ins->execute([$year, $month]);
+    $sel = db()->prepare('SELECT id FROM budget_months WHERE year = ? AND month = ?');
+    $sel->execute([$year, $month]);
+    $row = $sel->fetch();
+    if (!$row) {
+        json_response(['error' => 'No se pudo crear el mes'], 500);
+        exit;
+    }
+    return (int) $row['id'];
 }

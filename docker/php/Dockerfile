@@ -7,6 +7,7 @@ WORKDIR /var/www/html
 
 COPY api/lib.php api/config.example.php ./
 COPY api/public/ ./public/
+COPY api/routes/ ./routes/
 
 COPY docker/php/000-default.conf /etc/apache2/sites-available/000-default.conf
 

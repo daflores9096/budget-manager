@@ -1,28 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Eye } from 'lucide-react';
-import { api } from './api.js';
-import Sidebar from './Sidebar.jsx';
-import DashboardPage from './DashboardPage.jsx';
-
-const MONTH_NAMES = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-];
-
-function money(n) {
-  const v = Number(n) || 0;
-  return v.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { api } from '../api.js';
 
 function moneyUsd(n) {
   const v = Number(n) || 0;
@@ -53,55 +31,6 @@ function splitTitleDetail(description) {
     detail: parts.slice(1).join(' — ').trim(),
   };
 }
-
-function formatIsoRangeLabel(startIso, endIso) {
-  if (!startIso || !endIso) return '';
-  return `${formatDateLabel(startIso)} \u2014 ${formatDateLabel(endIso)}`;
-}
-
-function startOfWeekMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun..6=Sat
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function toIsoDate(d) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-}
-
-function periodToRange(periodId, customStart, customEnd) {
-  const now = new Date();
-  const today = toIsoDate(now);
-  if (periodId === 'today') return { start: today, end: today };
-  if (periodId === 'this_week') {
-    const s = startOfWeekMonday(now);
-    const e = new Date(s);
-    e.setDate(e.getDate() + 6);
-    return { start: toIsoDate(s), end: toIsoDate(e) };
-  }
-  if (periodId === 'last_6_months') {
-    const s = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { start: toIsoDate(s), end: toIsoDate(e) };
-  }
-  if (periodId === 'date_range') {
-    return { start: customStart || today, end: customEnd || today };
-  }
-  // this_month (default)
-  const s = new Date(now.getFullYear(), now.getMonth(), 1);
-  const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start: toIsoDate(s), end: toIsoDate(e) };
-}
-
-function summaryClass(remaining) {
-  if (remaining > 0) return 'good';
-  if (remaining < 0) return 'bad';
-  return 'warn';
-}
-
-const VIEWS = ['dashboard', 'ingresos', 'gastos', 'categorias'];
 
 function Modal({ open, title, children, onClose }) {
   if (!open) return null;
@@ -175,12 +104,58 @@ function CategoryDetails({ row }) {
   );
 }
 
-export default function App() {
-  // Legacy file kept for now; routing is now handled in `src/router.jsx` + `layouts/AppLayout.jsx`.
-  return null;
+function LedgerRow({ kind, row, disabled, onView, onEdit, onDelete, showExpenseType = false }) {
+  const initialParts = useMemo(() => String(row.description || '').split('—').map((s) => s.trim()), [row.description]);
+  const initialTitle = initialParts[0] || '';
+  const initialDetail = initialParts.slice(1).join(' — ').trim();
+
+  const amountDisplay = (Number(kind === 'expense' ? row.actual : row.amount) || 0).toLocaleString('es-BO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return (
+    <tr>
+      <td>
+        <span className="ui-strong">{initialTitle || '—'}</span>
+      </td>
+      <td>
+        <span className="ui-muted">{initialDetail || '—'}</span>
+      </td>
+      {kind === 'expense' && showExpenseType ? (
+        <td>
+          <span className="ui-pill">{row.type === 'fixed' ? 'Fijo' : 'Variable'}</span>
+        </td>
+      ) : null}
+      {kind === 'expense' ? (
+        <td>
+          <span className="ui-pill">{row.category || '—'}</span>
+        </td>
+      ) : null}
+      <td>
+        <span className="ui-muted">{formatDateLabel(row.date)}</span>
+      </td>
+      <td className="ui-td-right">
+        <span className="ui-money mono">{amountDisplay}</span>
+      </td>
+      <td className="ui-td-right">
+        <div className="ui-row ui-row--end ui-actions-inline">
+          <button className="ui-icon-btn" type="button" disabled={disabled} aria-label="Ver" onClick={onView}>
+            <Eye size={16} strokeWidth={2.2} aria-hidden />
+          </button>
+          <button className="ui-icon-btn" type="button" disabled={disabled} aria-label="Editar" onClick={onEdit}>
+            <Pencil size={16} strokeWidth={2.2} aria-hidden />
+          </button>
+          <button className="ui-icon-btn ui-icon-btn--danger" type="button" disabled={disabled} aria-label="Eliminar" onClick={onDelete}>
+            <Trash2 size={16} strokeWidth={2.2} aria-hidden />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
-function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
+export function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [name, setName] = useState('');
@@ -278,53 +253,45 @@ function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
                   </td>
                 </tr>
               ) : (
-                sorted.map((row) => {
-                  return (
-                    <tr key={row.id}>
-                      <td>
-                        <span className="ui-strong">{row.name}</span>
-                      </td>
-                      <td>
-                        <div className="ui-row ui-row--end">
-                          <button
-                            className="ui-icon-btn"
-                            type="button"
-                            disabled={disabled}
-                            aria-label="Ver"
-                            onClick={() => {
-                              setViewRow(row);
-                              setViewOpen(true);
-                            }}
-                          >
-                            <Eye size={16} strokeWidth={2.2} aria-hidden />
-                          </button>
-                          <button
-                            className="ui-icon-btn"
-                            type="button"
-                            disabled={disabled}
-                            aria-label="Editar"
-                            onClick={() => {
-                              setEditingId(row.id);
-                              setEditingName(row.name);
-                              setEditOpen(true);
-                            }}
-                          >
-                            <Pencil size={16} strokeWidth={2.2} aria-hidden />
-                          </button>
-                          <button
-                            className="ui-icon-btn ui-icon-btn--danger"
-                            type="button"
-                            disabled={disabled}
-                            aria-label="Eliminar"
-                            onClick={() => deleteCategory(row.id, row.name)}
-                          >
-                            <Trash2 size={16} strokeWidth={2.2} aria-hidden />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                sorted.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <span className="ui-strong">{row.name}</span>
+                    </td>
+                    <td>
+                      <div className="ui-row ui-row--end">
+                        <button
+                          className="ui-icon-btn"
+                          type="button"
+                          disabled={disabled}
+                          aria-label="Ver"
+                          onClick={() => {
+                            setViewRow(row);
+                            setViewOpen(true);
+                          }}
+                        >
+                          <Eye size={16} strokeWidth={2.2} aria-hidden />
+                        </button>
+                        <button
+                          className="ui-icon-btn"
+                          type="button"
+                          disabled={disabled}
+                          aria-label="Editar"
+                          onClick={() => {
+                            setEditingId(row.id);
+                            setEditingName(row.name);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Pencil size={16} strokeWidth={2.2} aria-hidden />
+                        </button>
+                        <button className="ui-icon-btn ui-icon-btn--danger" type="button" disabled={disabled} aria-label="Eliminar" onClick={() => deleteCategory(row.id, row.name)}>
+                          <Trash2 size={16} strokeWidth={2.2} aria-hidden />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -407,7 +374,7 @@ function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
   );
 }
 
-function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
+export function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
@@ -493,7 +460,7 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
         <div className="ui-card-head ui-card-head--split">
           <div>
             <div className="ui-card-title">Incomes</div>
-            <div className="ui-card-sub">Add and manage incomes for the selected month.</div>
+            <div className="ui-card-sub">Add and manage incomes.</div>
           </div>
           <div className="ui-actions">
             <button className="ui-btn ui-btn--primary" type="button" onClick={() => setCreateOpen(true)}>
@@ -696,7 +663,15 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
   );
 }
 
-function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setError, setLoading }) {
+export function ExpensesUnifiedSection({
+  items,
+  categories,
+  disabled,
+  onChanged,
+  setError,
+  setLoading,
+  pendingRecurringFixed = [],
+}) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [type, setType] = useState('variable');
   const [titleText, setTitleText] = useState('');
@@ -710,6 +685,11 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
   const [editingRow, setEditingRow] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewRow, setViewRow] = useState(null);
+
+  const [payOpen, setPayOpen] = useState(false);
+  const [payItem, setPayItem] = useState(null);
+  const [payActual, setPayActual] = useState('');
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const [query, setQuery] = useState('');
   const [catFilter, setCatFilter] = useState('all');
@@ -805,13 +785,33 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
     }
   }
 
+  async function submitRecurringPay(e) {
+    e.preventDefault();
+    if (!payItem) return;
+    setError('');
+    try {
+      setLoading(true);
+      await api(`/api/recurring-fixed/${payItem.id}/pay`, {
+        method: 'POST',
+        body: { date: payDate, actual: Number(payActual || 0) },
+      });
+      setPayOpen(false);
+      setPayItem(null);
+      await onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="ui-stack">
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
             <div className="ui-card-title">Expenses</div>
-            <div className="ui-card-sub">Add and manage expenses for the selected month.</div>
+            <div className="ui-card-sub">Gastos (fijos y variables)</div>
           </div>
           <div className="ui-actions">
             <button className="ui-btn ui-btn--primary" type="button" onClick={() => setCreateOpen(true)}>
@@ -824,11 +824,49 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
         </div>
       </section>
 
+      <section className="ui-card ui-card--pending-fixed">
+        <div className="ui-card-head">
+          <div>
+            <div className="ui-card-title">Gastos fijos pendientes</div>
+            <div className="ui-card-sub">Este mes calendario. Clic en el título para registrar el pago (se quita de la lista al guardar).</div>
+          </div>
+        </div>
+        {pendingRecurringFixed.length === 0 ? (
+          <p className="ui-muted" style={{ margin: '0 0 0.25rem' }}>
+            Sin pendientes para este mes.
+          </p>
+        ) : (
+          <ul className="ui-pending-fixed-list">
+            {pendingRecurringFixed.map((p) => (
+              <li key={p.id} className="ui-pending-fixed-row">
+                <button
+                  type="button"
+                  className="ui-pending-fixed-title"
+                  disabled={disabled}
+                  onClick={() => {
+                    setPayItem(p);
+                    setPayActual(String(p.expected_amount ?? ''));
+                    setPayDate(new Date().toISOString().slice(0, 10));
+                    setPayOpen(true);
+                  }}
+                >
+                  {p.title}
+                </button>
+                <span className="ui-pill">{p.category}</span>
+                <span className="mono ui-muted">
+                  {(Number(p.expected_amount) || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
             <div className="ui-card-title">History</div>
-            <div className="ui-card-sub">Gastos (fijos y variables)</div>
+            <div className="ui-card-sub">Search and filter</div>
           </div>
           <div className="ui-toolbar">
             <label className="ui-field ui-field--toolbar">
@@ -886,7 +924,6 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
                     kind="expense"
                     row={{ ...row, amount: row.actual }}
                     disabled={disabled}
-                    categories={categories}
                     showExpenseType
                     onDelete={() => deleteExpense(row.id)}
                     onView={() => {
@@ -928,6 +965,51 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
           </div>
         </div>
       </section>
+
+      <Modal
+        open={payOpen}
+        title="Registrar pago — gasto fijo"
+        onClose={() => {
+          setPayOpen(false);
+          setPayItem(null);
+        }}
+      >
+        {payItem ? (
+          <form className="ui-form-grid ui-form-grid--ledger" onSubmit={submitRecurringPay}>
+            <DetailField label="TÍTULO">{payItem.title}</DetailField>
+            <div className="ui-detail-grid-2">
+              <DetailField label="MONTO ESPERADO">
+                <span className="ui-detail-money">
+                  {moneyUsd(Number(payItem.expected_amount) || 0)}
+                </span>
+              </DetailField>
+              <DetailField label="TIPO">
+                <span className="ui-pill">Fijo</span>
+              </DetailField>
+            </div>
+            <DetailField label="CATEGORÍA">{payItem.category || '—'}</DetailField>
+            <label className="ui-field">
+              <span className="ui-label">Monto real</span>
+              <input className="ui-input mono" inputMode="decimal" placeholder="0.00" value={payActual} onChange={(e) => setPayActual(e.target.value)} />
+            </label>
+            <label className="ui-field">
+              <span className="ui-label">Fecha</span>
+              <input className="ui-input" type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+            </label>
+            <div className="ui-actions ui-actions--end ui-field--full">
+              <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setPayOpen(false)}>
+                Cancelar
+              </button>
+              <button className="ui-btn ui-btn--primary" type="submit">
+                <span className="ui-btn-icon" aria-hidden>
+                  <Save size={18} strokeWidth={2.2} />
+                </span>
+                Guardar
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
 
       <Modal
         open={createOpen}
@@ -1015,7 +1097,7 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
             e.preventDefault();
             if (!editingRow) return;
             const description = [titleText.trim(), detailText.trim()].filter(Boolean).join(' — ');
-            const patch = { date, description, category, actual: Number(actual || 0) };
+            const patch = { date, description, category, actual: Number(actual || 0), type };
             if (editingRow.type === 'fixed' || type === 'fixed') {
               patch.expected = expected === '' ? null : Number(expected);
               patch.paid = Boolean(paid);
@@ -1098,50 +1180,3 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
   );
 }
 
-function LedgerRow({ kind, row, disabled, categories, onView, onEdit, onDelete, showExpenseType = false }) {
-  const initialParts = useMemo(() => String(row.description || '').split('—').map((s) => s.trim()), [row.description]);
-  const initialTitle = initialParts[0] || '';
-  const initialDetail = initialParts.slice(1).join(' — ').trim();
-
-  const amountDisplay = money(kind === 'expense' ? row.actual : row.amount);
-
-  return (
-    <tr>
-      <td>
-        <span className="ui-strong">{initialTitle || '—'}</span>
-      </td>
-      <td>
-        <span className="ui-muted">{initialDetail || '—'}</span>
-      </td>
-      {kind === 'expense' && showExpenseType ? (
-        <td>
-          <span className="ui-pill">{row.type === 'fixed' ? 'Fijo' : 'Variable'}</span>
-        </td>
-      ) : null}
-      {kind === 'expense' ? (
-        <td>
-          <span className="ui-pill">{row.category || '—'}</span>
-        </td>
-      ) : null}
-      <td>
-        <span className="ui-muted">{formatDateLabel(row.date)}</span>
-      </td>
-      <td className="ui-td-right">
-        <span className="ui-money mono">{amountDisplay}</span>
-      </td>
-      <td className="ui-td-right">
-        <div className="ui-row ui-row--end ui-actions-inline">
-          <button className="ui-icon-btn" type="button" disabled={disabled} aria-label="Ver" onClick={onView}>
-            <Eye size={16} strokeWidth={2.2} aria-hidden />
-          </button>
-          <button className="ui-icon-btn" type="button" disabled={disabled} aria-label="Editar" onClick={onEdit}>
-            <Pencil size={16} strokeWidth={2.2} aria-hidden />
-          </button>
-          <button className="ui-icon-btn ui-icon-btn--danger" type="button" disabled={disabled} aria-label="Eliminar" onClick={onDelete}>
-            <Trash2 size={16} strokeWidth={2.2} aria-hidden />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}

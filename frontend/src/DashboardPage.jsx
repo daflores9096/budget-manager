@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Calendar,
   Lightbulb,
@@ -32,6 +32,21 @@ function aggregateByCategory(expenses) {
   return [...map.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+function polar(cx, cy, rad, ang) {
+  return [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
+}
+
+/** Donut slice from angle a0 to a1 (radians), clockwise, y-down SVG coords. */
+function donutSlicePath(cx, cy, rInner, rOuter, a0, a1) {
+  if (a1 - a0 < 0.0001) return '';
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const [x0, y0] = polar(cx, cy, rOuter, a0);
+  const [x1, y1] = polar(cx, cy, rOuter, a1);
+  const [x2, y2] = polar(cx, cy, rInner, a1);
+  const [x3, y3] = polar(cx, cy, rInner, a0);
+  return `M ${x0} ${y0} A ${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
+}
+
 function dailySpendingSeries(expenses, year, month) {
   const dim = daysInMonth(year, month);
   const arr = Array.from({ length: dim }, () => 0);
@@ -56,7 +71,20 @@ function sumSpentOnDate(expenses, isoDate) {
   return total;
 }
 
-function SpendingTrendChart({ series }) {
+function spendingTrendDayIso(year, month, dayIndex) {
+  const d = dayIndex + 1;
+  return `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function formatTrendDayLabel(iso) {
+  const dt = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(dt.getTime())) return iso;
+  return new Intl.DateTimeFormat('es-BO', { weekday: 'short', day: 'numeric', month: 'short' }).format(dt);
+}
+
+function SpendingTrendChart({ series, year, month, money }) {
+  const [tip, setTip] = useState(null);
+
   const w = 320;
   const h = 110;
   const padL = 36;
@@ -67,79 +95,179 @@ function SpendingTrendChart({ series }) {
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
   const n = series.length || 1;
+  const step = n > 1 ? innerW / (n - 1) : innerW;
+
   const points = series.map((v, i) => {
-    const x = padL + (i / Math.max(1, n - 1)) * innerW;
+    const x = padL + i * step;
     const y = padT + innerH - (v / maxVal) * innerH;
     return `${x},${y}`;
   });
   const polyline = points.join(' ');
 
   return (
-    <div className="dash-chart-wrap" aria-hidden>
-      <svg className="dash-chart-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <div className="dash-chart-wrap">
+      <svg
+        className="dash-chart-svg"
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Tendencia de gasto por día"
+        onMouseLeave={() => setTip(null)}
+      >
         <line x1={padL} y1={padT + innerH} x2={w - padR} y2={padT + innerH} stroke="#e5e7eb" strokeWidth="1" />
         <polyline fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" points={polyline} />
+        {tip ? (
+          <line
+            x1={tip.chartX}
+            y1={padT}
+            x2={tip.chartX}
+            y2={padT + innerH}
+            stroke="#94a3b8"
+            strokeWidth="1"
+            strokeDasharray="3 3"
+            pointerEvents="none"
+          />
+        ) : null}
         {series.map((v, i) => {
-          const x = padL + (i / Math.max(1, n - 1)) * innerW;
+          const cx = padL + i * step;
           const y = padT + innerH - (v / maxVal) * innerH;
-          return <circle key={i} cx={x} cy={y} r="3" fill="#22c55e" />;
+          const iso = spendingTrendDayIso(year, month, i);
+          const bandW = Math.max(step, 10);
+          return (
+            <g key={i}>
+              <circle cx={cx} cy={y} r="4" fill="#22c55e" stroke="#ffffff" strokeWidth="1" className="dash-trend-dot">
+                <title>{`${formatTrendDayLabel(iso)}: ${money(v)}`}</title>
+              </circle>
+              <rect
+                x={cx - bandW / 2}
+                y={padT}
+                width={bandW}
+                height={innerH}
+                fill="transparent"
+                className="dash-trend-hit"
+                onMouseEnter={(e) => {
+                  setTip({
+                    chartX: cx,
+                    x: e.clientX,
+                    y: e.clientY,
+                    iso,
+                    amount: v,
+                    dayLabel: formatTrendDayLabel(iso),
+                  });
+                }}
+                onMouseMove={(e) => {
+                  setTip({
+                    chartX: cx,
+                    x: e.clientX,
+                    y: e.clientY,
+                    iso,
+                    amount: v,
+                    dayLabel: formatTrendDayLabel(iso),
+                  });
+                }}
+              />
+            </g>
+          );
         })}
         <text x={padL} y={h - 6} fontSize="9" fill="#9ca3af">
           Día del mes (1–{n})
         </text>
       </svg>
+      {tip ? (
+        <div className="dash-donut-tooltip dash-trend-tooltip" style={{ left: tip.x, top: tip.y }} role="status" aria-live="polite">
+          <span className="dash-donut-tooltip-name">{tip.dayLabel}</span>
+          <span className="dash-donut-tooltip-amt mono">{money(tip.amount)}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function DonutChart({ rows }) {
-  const data = rows
-    .filter(([, amt]) => (Number(amt) || 0) > 0)
-    .slice(0, 6)
-    .map(([name, amt]) => ({ name, amt: Number(amt) || 0 }));
-  const total = data.reduce((acc, x) => acc + x.amt, 0);
+function DonutChart({ rows, money }) {
+  const [tip, setTip] = useState(null);
 
   const size = 168;
   const stroke = 22;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
   const cx = size / 2;
   const cy = size / 2;
+  const rMid = (size - stroke) / 2;
+  const rOuter = rMid + stroke / 2;
+  const rInner = Math.max(8, rMid - stroke / 2);
   const colors = ['#7c3aed', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe', '#f5f3ff'];
 
-  let offset = 0;
-  const segs =
-    total > 0
-      ? data.map((d, idx) => {
-          const frac = d.amt / total;
-          const len = Math.max(0, frac * c);
-          const dash = `${len} ${Math.max(0, c - len)}`;
-          const seg = (
-            <circle
-              key={d.name}
-              cx={cx}
-              cy={cy}
-              r={r}
-              fill="none"
-              stroke={colors[idx % colors.length]}
-              strokeWidth={stroke}
-              strokeDasharray={dash}
-              strokeDashoffset={-offset}
-              strokeLinecap="butt"
-            />
-          );
-          offset += len;
-          return seg;
-        })
-      : null;
+  const slices = useMemo(() => {
+    const data = rows
+      .filter(([, amt]) => (Number(amt) || 0) > 0)
+      .slice(0, 6)
+      .map(([name, amt]) => ({ name, amt: Number(amt) || 0 }));
+    const total = data.reduce((acc, x) => acc + x.amt, 0);
+    if (total <= 0) return { data, total: 0, items: [] };
+    let a = 0;
+    const items = data.map((d, idx) => {
+      const sweep = (d.amt / total) * 2 * Math.PI;
+      const a0 = a;
+      const a1 = a + sweep;
+      a = a1;
+      return {
+        ...d,
+        idx,
+        a0,
+        a1,
+        path: donutSlicePath(cx, cy, rInner, rOuter, a0, a1),
+        color: colors[idx % colors.length],
+      };
+    });
+    return { data, total, items };
+  }, [rows]);
+
+  const { data, total, items } = slices;
 
   return (
     <div className="dash-donut">
-      <svg className="dash-donut-svg" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Spending by category">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#ede9fe" strokeWidth={stroke} />
-        <g transform={`rotate(-90 ${cx} ${cy})`}>{segs}</g>
-        <circle cx={cx} cy={cy} r={r - stroke / 2 + 1} fill="#ffffff" />
+      <svg
+        className="dash-donut-svg"
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label="Spending by category"
+        onMouseLeave={() => setTip(null)}
+      >
+        <circle cx={cx} cy={cy} r={(rInner + rOuter) / 2} fill="none" stroke="#ede9fe" strokeWidth={rOuter - rInner} />
+        <g transform={`rotate(-90 ${cx} ${cy})`}>
+          {total > 0
+            ? items.map((seg) => (
+                <path
+                  key={`${seg.idx}-${seg.name}`}
+                  d={seg.path}
+                  fill={seg.color}
+                  stroke="#ffffff"
+                  strokeWidth="1"
+                  strokeLinejoin="round"
+                  className="dash-donut-seg"
+                  onMouseEnter={(e) => {
+                    setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
+                  }}
+                  onMouseMove={(e) => {
+                    setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
+                  }}
+                >
+                  <title>{`${seg.name}: ${money(seg.amt)}`}</title>
+                </path>
+              ))
+            : null}
+        </g>
+        <circle cx={cx} cy={cy} r={rInner - 1} fill="#ffffff" />
       </svg>
+      {tip ? (
+        <div
+          className="dash-donut-tooltip"
+          style={{ left: tip.x, top: tip.y }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="dash-donut-tooltip-name">{tip.name}</span>
+          <span className="dash-donut-tooltip-amt mono">{money(tip.amt)}</span>
+        </div>
+      ) : null}
       <div className="dash-donut-legend" aria-hidden>
         <span className="dash-donut-dot" />
         <span className="dash-donut-label">{data[0]?.name ?? '—'}</span>
@@ -149,39 +277,44 @@ function DonutChart({ rows }) {
 }
 
 export default function DashboardPage({
-  months,
-  selectedId,
-  setSelectedId,
   detail,
+  monthlyDetail,
   loading,
-  newYear,
-  setNewYear,
-  newMonth,
-  setNewMonth,
-  onCreateMonth,
-  onDeleteMonth,
-  onOpenCreateMonth,
+  dashboardPeriod,
+  setDashboardPeriod,
+  dashboardStart,
+  setDashboardStart,
+  dashboardEnd,
+  setDashboardEnd,
+  dashboardRangeLabel,
   money,
   summaryClass,
   monthNames,
   setSidebarOpen,
 }) {
-  const selectedMeta = useMemo(() => months.find((x) => x.id === selectedId), [months, selectedId]);
-  const year = selectedMeta?.year;
-  const month = selectedMeta?.month;
-
   const expenses = detail?.expenses || [];
   const expenseCount = expenses.length;
   const categoryRows = useMemo(() => aggregateByCategory(expenses), [expenses]);
   const hasCategorySpend = categoryRows.length > 0;
-  const series = useMemo(() => {
-    if (!year || !month) return Array.from({ length: 30 }, () => 0);
-    return dailySpendingSeries(expenses, year, month);
-  }, [expenses, year, month]);
+  const spendingTrend = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    return {
+      year,
+      month,
+      series: dailySpendingSeries(expenses, year, month),
+    };
+  }, [expenses]);
 
   const totalSpent = detail?.summary?.total_spent ?? 0;
   const totalIncome = detail?.summary?.total_income ?? 0;
   const remaining = detail?.summary?.remaining ?? 0;
+
+  const monthTotalSpent = monthlyDetail?.summary?.total_spent ?? 0;
+  const monthTotalIncome = monthlyDetail?.summary?.total_income ?? 0;
+  const monthRemaining = (Number(monthTotalIncome) || 0) - (Number(monthTotalSpent) || 0);
+
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const todaySpent = useMemo(() => sumSpentOnDate(expenses, todayIso), [expenses, todayIso]);
 
@@ -246,40 +379,32 @@ export default function DashboardPage({
         <div className="dash-period-inner">
           <div>
             <div className="dash-label-upper">Periodo</div>
-            <select
-              className="dash-select"
-              value={selectedId ?? ''}
-              onChange={(ev) => setSelectedId(Number(ev.target.value))}
-            >
-              {months.length === 0 ? (
-                <option value="">Sin meses</option>
-              ) : (
-                months.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {monthNames[m.month - 1]} {m.year}
-                  </option>
-                ))
-              )}
+            <select className="dash-select" value={dashboardPeriod} onChange={(e) => setDashboardPeriod(e.target.value)}>
+              <option value="today">Today (daily)</option>
+              <option value="this_week">This week</option>
+              <option value="this_month">This month</option>
+              <option value="last_6_months">Last 6 months</option>
+              <option value="date_range">Date range</option>
             </select>
           </div>
           <div className="dash-period-range">
-            {year && month ? (
-              <>
-                Mostrando: <strong>{formatPeriodRange(year, month)}</strong>
-              </>
-            ) : (
-              <span className="dash-muted">Crea un mes para ver el rango de fechas.</span>
-            )}
+            Showing: <strong>{dashboardRangeLabel?.(detail?.range?.start ?? dashboardStart, detail?.range?.end ?? dashboardEnd)}</strong>
           </div>
         </div>
-        <div className="dash-period-actions">
-          <button type="button" className="dash-btn dash-btn--primary" onClick={onOpenCreateMonth} disabled={loading}>
-            Crear mes
-          </button>
-          <button type="button" className="dash-btn dash-btn--ghost" disabled={!selectedId || loading} onClick={onDeleteMonth}>
-            Eliminar mes
-          </button>
-        </div>
+        {dashboardPeriod === 'date_range' ? (
+          <div className="dash-period-actions" style={{ justifyContent: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <label className="dash-muted">
+                Start{' '}
+                <input className="dash-select dash-select--sm" type="date" value={dashboardStart} onChange={(e) => setDashboardStart(e.target.value)} />
+              </label>
+              <label className="dash-muted">
+                End{' '}
+                <input className="dash-select dash-select--sm" type="date" value={dashboardEnd} onChange={(e) => setDashboardEnd(e.target.value)} />
+              </label>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {loading && !detail ? (
@@ -296,7 +421,7 @@ export default function DashboardPage({
                 </span>
                 <h3 className="dash-tile-title">Spending by category</h3>
               </div>
-              {!hasCategorySpend ? <p className="dash-tile-empty">No spending yet for this period.</p> : <DonutChart rows={categoryRows} />}
+              {!hasCategorySpend ? <p className="dash-tile-empty">No spending yet for this period.</p> : <DonutChart rows={categoryRows} money={money} />}
             </article>
 
             <article className="dash-tile dash-tile--white">
@@ -306,7 +431,7 @@ export default function DashboardPage({
                 </span>
                 <h3 className="dash-tile-title">Spending trend</h3>
               </div>
-              <SpendingTrendChart series={series} />
+              <SpendingTrendChart series={spendingTrend.series} year={spendingTrend.year} month={spendingTrend.month} money={money} />
             </article>
 
             <article className="dash-tile dash-tile--yellow">
@@ -321,6 +446,17 @@ export default function DashboardPage({
               <p className="dash-tile-caption dash-tile-caption--today">Today (local date): <span className="mono">{money(todaySpent)}</span></p>
             </article>
 
+            <article className="dash-tile dash-tile--white">
+              <div className="dash-tile-head">
+                <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
+                  <PiggyBank size={22} strokeWidth={1.75} />
+                </span>
+                <h3 className="dash-tile-title">Monthly budget total</h3>
+              </div>
+              <p className="dash-big-number mono">{money(monthTotalIncome)}</p>
+              <p className="dash-tile-caption">Always uses this calendar month (does not change with filters).</p>
+            </article>
+
             <article className="dash-tile dash-tile--green">
               <div className="dash-tile-head">
                 <span className="dash-tile-icon dash-tile-icon--green" aria-hidden>
@@ -328,10 +464,10 @@ export default function DashboardPage({
                 </span>
                 <h3 className="dash-tile-title">Monthly budget remaining</h3>
               </div>
-              <p className={`dash-big-number mono dash-balance dash-balance--${summaryClass(remaining)}`}>{money(remaining)}</p>
+              <p className={`dash-big-number mono dash-balance dash-balance--${summaryClass(monthRemaining)}`}>{money(monthRemaining)}</p>
               <p className="dash-tile-caption">Always uses this calendar month as your monthly budget.</p>
               <p className="dash-tile-caption">
-                Budget: <span className="mono">{money(totalIncome)}</span> • Spent this month: <span className="mono">{money(totalSpent)}</span>
+                Budget: <span className="mono">{money(monthTotalIncome)}</span> • Spent this month: <span className="mono">{money(monthTotalSpent)}</span>
               </p>
             </article>
           </div>
