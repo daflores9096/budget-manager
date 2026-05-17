@@ -1,0 +1,9 @@
+{$APP_DOMAIN} {
+  encode zstd gzip
+
+  # Proxy the web container (which proxies /api to the PHP API container)
+  reverse_proxy web:80
+
+  tls {$CADDY_EMAIL}
+}
+

@@ -7,6 +7,7 @@ export default function ExpensesPage({ ctx }) {
       categories={ctx.categories || []}
       disabled={ctx.loading}
       pendingRecurringFixed={ctx.pendingRecurringFixed || []}
+      canManageRecurringFixed={ctx.user?.role === 'admin'}
       onChanged={async () => {
         await ctx.reloadMonthly();
         await ctx.reloadDashboard();

@@ -1,9 +1,47 @@
+function joinUrl(base, path) {
+  const b = String(base || '').trim();
+  if (!b) return path;
+  const p = String(path || '');
+  if (!p) return b;
+  if (p.startsWith('http://') || p.startsWith('https://')) return p;
+  if (b.endsWith('/') && p.startsWith('/')) return b.slice(0, -1) + p;
+  if (!b.endsWith('/') && !p.startsWith('/')) return `${b}/${p}`;
+  return b + p;
+}
+
+const TOKEN_KEY = 'bm_access_token';
+
+export function setAccessToken(token) {
+  if (!token) {
+    localStorage.removeItem(TOKEN_KEY);
+    return;
+  }
+  localStorage.setItem(TOKEN_KEY, String(token));
+}
+
+export function getAccessToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function clearAccessToken() {
+  setAccessToken('');
+}
+
 export async function api(path, options = {}) {
   const { body, headers, ...rest } = options;
-  const res = await fetch(path, {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  const url = joinUrl(baseUrl, path);
+  const token = getAccessToken();
+  const res = await fetch(url, {
     ...rest,
+    credentials: rest.credentials ?? 'include',
     headers: {
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(headers || {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

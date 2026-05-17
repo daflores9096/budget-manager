@@ -1,14 +1,5 @@
--- Presupuesto mensual + ingresos + gastos (fijos / variables)
--- MySQL 8+ recomendado
---
--- Import en un solo archivo (base fija budget_manager). En Docker se usa
--- database/schema_tables.sql + database/docker-init/01-load-schema.sh sobre MYSQL_DATABASE.
-
-CREATE DATABASE IF NOT EXISTS budget_manager
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE budget_manager;
+-- Tablas dentro de la base ya seleccionada (Docker: MYSQL_DATABASE).
+-- Instalación manual: crear la base y luego ejecutar este archivo dentro de ella.
 
 SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;

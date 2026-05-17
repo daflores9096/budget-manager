@@ -9,8 +9,10 @@ declare(strict_types=1);
  */
 return static function (string $method, string $path): void {
     ensure_recurring_fixed_schema();
+    ensure_ledger_user_schema();
 
     if ($path === '/api/recurring-fixed/pending' && $method === 'GET') {
+        require_auth();
         $year = isset($_GET['year']) ? (int) $_GET['year'] : 0;
         $month = isset($_GET['month']) ? (int) $_GET['month'] : 0;
         if ($year < 2000 || $year > 2100 || $month < 1 || $month > 12) {
@@ -39,6 +41,7 @@ return static function (string $method, string $path): void {
     }
 
     if ($path === '/api/recurring-fixed' && $method === 'GET') {
+        require_role('admin');
         $stmt = db()->query('SELECT id, title, expected_amount, category FROM recurring_fixed_expenses ORDER BY title ASC');
         $rows = $stmt->fetchAll();
         foreach ($rows as &$r) {
@@ -53,6 +56,7 @@ return static function (string $method, string $path): void {
     }
 
     if ($path === '/api/recurring-fixed' && $method === 'POST') {
+        require_role('admin');
         $body = read_json_body();
         $title = trim((string) ($body['title'] ?? ''));
         $category = (string) ($body['category'] ?? 'Varios');
@@ -74,6 +78,8 @@ return static function (string $method, string $path): void {
     }
 
     if (preg_match('#^/api/recurring-fixed/(\d+)/pay$#', $path, $m) && $method === 'POST') {
+        $u = require_auth();
+        $userId = (int) ($u['id'] ?? 0);
         $rid = (int) $m[1];
         $row = db()->prepare('SELECT id, title, expected_amount, category FROM recurring_fixed_expenses WHERE id = ?');
         $row->execute([$rid]);
@@ -110,10 +116,10 @@ return static function (string $method, string $path): void {
         $expected = (float) $tpl['expected_amount'];
 
         $stmt = db()->prepare(
-            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid)
-             VALUES (?,?,?,?,?,?,?,1)'
+            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid, user_id)
+             VALUES (?,?,?,?,?,?,?,?,?)'
         );
-        $stmt->execute([$monthId, 'fixed', $date, $title, $expected, $actual, $category]);
+        $stmt->execute([$monthId, 'fixed', $date, $title, $expected, $actual, $category, 1, $userId]);
         $expenseId = (int) db()->lastInsertId();
 
         $link = db()->prepare(
@@ -129,6 +135,7 @@ return static function (string $method, string $path): void {
         $id = (int) $m[1];
 
         if ($method === 'PATCH') {
+            require_role('admin');
             $exists = db()->prepare('SELECT id FROM recurring_fixed_expenses WHERE id = ?');
             $exists->execute([$id]);
             if (!$exists->fetch()) {
@@ -175,6 +182,7 @@ return static function (string $method, string $path): void {
         }
 
         if ($method === 'DELETE') {
+            require_role('admin');
             $del = db()->prepare('DELETE FROM recurring_fixed_expenses WHERE id = ?');
             $del->execute([$id]);
             if ($del->rowCount() === 0) {

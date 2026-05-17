@@ -1,10 +1,11 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from '../Sidebar.jsx';
-import { api } from '../api.js';
+import { api, clearAccessToken } from '../api.js';
+import { toLocalIsoDate } from '../lib/localIsoDate.js';
 
 function toIsoDate(d) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return toLocalIsoDate(d);
 }
 
 function startOfWeekMonday(date) {
@@ -44,6 +45,7 @@ function viewFromPath(pathname) {
   if (pathname.startsWith('/expenses')) return 'expenses';
   if (pathname.startsWith('/gastos-fijos')) return 'gastos_fijos';
   if (pathname.startsWith('/categories')) return 'categories';
+  if (pathname.startsWith('/users')) return 'users';
   return 'dashboard';
 }
 
@@ -54,6 +56,8 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+  const [user, setUser] = useState(null);
 
   const [categories, setCategories] = useState([]);
   const [categoryItems, setCategoryItems] = useState([]);
@@ -75,7 +79,9 @@ export default function AppLayout() {
           ? 'Gastos'
           : activeView === 'gastos_fijos'
             ? 'Gastos fijos'
-            : 'Categorías';
+            : activeView === 'users'
+              ? 'Usuarios'
+              : 'Categorías';
 
   const loadCategories = useCallback(async () => {
     const data = await api('/api/categories');
@@ -118,11 +124,20 @@ export default function AppLayout() {
     (async () => {
       try {
         setLoading(true);
+        const me = await api('/api/auth/me');
+        const u = me?.user ?? null;
+        if (!cancelled) setUser(u);
+        if (!u) {
+          return;
+        }
         await loadCategories();
       } catch (e) {
         if (!cancelled) setError(e.message || 'No se pudo conectar con la API');
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setAuthReady(true);
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -134,6 +149,18 @@ export default function AppLayout() {
     let cancelled = false;
     (async () => {
       try {
+        if (!authReady) return;
+        if (!user) {
+          const next = `${location.pathname || '/'}${location.search || ''}`;
+          navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true });
+          return;
+        }
+        // Frontend route guard (UX). Backend RBAC is still the source of truth.
+        const p = location.pathname || '/';
+        if (user.role !== 'admin' && (p.startsWith('/categories') || p.startsWith('/gastos-fijos') || p.startsWith('/users'))) {
+          navigate('/dashboard', { replace: true });
+          return;
+        }
         setLoading(true);
         await loadDashboard();
         await loadMonthly();
@@ -147,7 +174,22 @@ export default function AppLayout() {
     return () => {
       cancelled = true;
     };
-  }, [loadDashboard, loadMonthly, loadPendingRecurringFixed]);
+  }, [authReady, user, navigate, location.pathname, location.search, loadDashboard, loadMonthly, loadPendingRecurringFixed]);
+
+  async function onLogout() {
+    setError('');
+    try {
+      setLoading(true);
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      // ignore
+    } finally {
+      clearAccessToken();
+      setUser(null);
+      setLoading(false);
+      navigate('/login', { replace: true });
+    }
+  }
 
   const ctx = useMemo(
     () => ({
@@ -168,6 +210,7 @@ export default function AppLayout() {
       setDashboardEnd,
       dashboardDetail,
       monthlyDetail,
+      user,
       pendingRecurringFixed,
       reloadDashboard: loadDashboard,
       reloadMonthly: loadMonthly,
@@ -185,6 +228,7 @@ export default function AppLayout() {
       dashboardEnd,
       dashboardDetail,
       monthlyDetail,
+      user,
       pendingRecurringFixed,
       loadDashboard,
       loadMonthly,
@@ -199,6 +243,7 @@ export default function AppLayout() {
       gastos: '/expenses',
       gastos_fijos: '/gastos-fijos',
       categorias: '/categories',
+      users: '/users',
       incomes: '/incomes',
       expenses: '/expenses',
       categories: '/categories',
@@ -206,6 +251,18 @@ export default function AppLayout() {
     const to = map[id] || '/dashboard';
     navigate(to);
     setSidebarOpen(false);
+  }
+
+  if (!authReady) {
+    return (
+      <div className="app-shell">
+        <div className="main-area">
+          <div className="main-content">
+            <div className="panel">Cargando…</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -220,8 +277,13 @@ export default function AppLayout() {
                 ? 'gastos'
                 : activeView === 'gastos_fijos'
                   ? 'gastos_fijos'
-                  : 'categorias'
+                  : activeView === 'users'
+                    ? 'users'
+                    : 'categorias'
         }
+        role={user?.role || 'appuser'}
+        user={user}
+        onLogout={onLogout}
         onNavigate={onNavigate}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

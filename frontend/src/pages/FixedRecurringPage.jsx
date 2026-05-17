@@ -6,11 +6,11 @@ function Modal({ open, title, children, onClose }) {
   if (!open) return null;
   return (
     <div className="ui-modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="ui-modal-backdrop" aria-label="Close modal" onClick={onClose} />
+      <button type="button" className="ui-modal-backdrop" aria-label="Cerrar modal" onClick={onClose} />
       <div className="ui-modal-card">
         <div className="ui-modal-head">
           <div className="ui-modal-title">{title}</div>
-          <button type="button" className="ui-icon-btn" aria-label="Close" onClick={onClose}>
+          <button type="button" className="ui-icon-btn" aria-label="Cerrar" onClick={onClose}>
             <X size={18} strokeWidth={2.2} aria-hidden />
           </button>
         </div>
@@ -156,7 +156,7 @@ export default function FixedRecurringPage({ ctx }) {
               {sorted.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="ui-muted">
-                    No hay plantillas. Agrega renta, internet, seguros, etc.
+                    No hay plantillas. Agrega alquiler, internet, seguros, etc.
                   </td>
                 </tr>
               ) : (

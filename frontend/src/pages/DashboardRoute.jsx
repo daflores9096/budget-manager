@@ -5,7 +5,7 @@ function formatDateLabel(isoDate) {
   if (!isoDate) return '';
   const d = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(d);
+  return new Intl.DateTimeFormat('es-BO', { month: 'short', day: '2-digit', year: 'numeric' }).format(d);
 }
 
 function formatIsoRangeLabel(startIso, endIso) {

@@ -9,6 +9,7 @@ import {
   Sparkles,
   Wallet,
 } from 'lucide-react';
+import { toLocalIsoDate } from './lib/localIsoDate.js';
 
 const SHORT_MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -315,7 +316,7 @@ export default function DashboardPage({
   const monthTotalIncome = monthlyDetail?.summary?.total_income ?? 0;
   const monthRemaining = (Number(monthTotalIncome) || 0) - (Number(monthTotalSpent) || 0);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayIso = useMemo(() => toLocalIsoDate(), []);
   const todaySpent = useMemo(() => sumSpentOnDate(expenses, todayIso), [expenses, todayIso]);
 
   const insight = useMemo(() => {
@@ -367,12 +368,12 @@ export default function DashboardPage({
         <div className="dashboard-hero-top">
           <div className="dashboard-kicker">
             <PiggyBank className="dash-kicker-icon" size={18} strokeWidth={2} aria-hidden />
-            <span>Smart personal finance</span>
+            <span>Finanzas personales</span>
           </div>
-          <div className="dashboard-meta">{expenseCount} expense{expenseCount === 1 ? '' : 's'} saved</div>
+          <div className="dashboard-meta">{expenseCount} gasto{expenseCount === 1 ? '' : 's'} registrado{expenseCount === 1 ? '' : 's'}</div>
         </div>
         <h1 className="dashboard-title">Dashboard</h1>
-        <p className="dashboard-subtitle">Month at a glance: categories, daily trend, today&apos;s spending and budget.</p>
+        <p className="dashboard-subtitle">Resumen del periodo: categorías, tendencia diaria, gasto de hoy y presupuesto.</p>
       </header>
 
       <section className="dash-card dash-period-card">
@@ -380,26 +381,26 @@ export default function DashboardPage({
           <div>
             <div className="dash-label-upper">Periodo</div>
             <select className="dash-select" value={dashboardPeriod} onChange={(e) => setDashboardPeriod(e.target.value)}>
-              <option value="today">Today (daily)</option>
-              <option value="this_week">This week</option>
-              <option value="this_month">This month</option>
-              <option value="last_6_months">Last 6 months</option>
-              <option value="date_range">Date range</option>
+              <option value="today">Hoy</option>
+              <option value="this_week">Esta semana</option>
+              <option value="this_month">Este mes</option>
+              <option value="last_6_months">Últimos 6 meses</option>
+              <option value="date_range">Rango de fechas</option>
             </select>
           </div>
           <div className="dash-period-range">
-            Showing: <strong>{dashboardRangeLabel?.(detail?.range?.start ?? dashboardStart, detail?.range?.end ?? dashboardEnd)}</strong>
+            Mostrando: <strong>{dashboardRangeLabel?.(detail?.range?.start ?? dashboardStart, detail?.range?.end ?? dashboardEnd)}</strong>
           </div>
         </div>
         {dashboardPeriod === 'date_range' ? (
           <div className="dash-period-actions" style={{ justifyContent: 'flex-start' }}>
             <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
               <label className="dash-muted">
-                Start{' '}
+                Inicio{' '}
                 <input className="dash-select dash-select--sm" type="date" value={dashboardStart} onChange={(e) => setDashboardStart(e.target.value)} />
               </label>
               <label className="dash-muted">
-                End{' '}
+                Fin{' '}
                 <input className="dash-select dash-select--sm" type="date" value={dashboardEnd} onChange={(e) => setDashboardEnd(e.target.value)} />
               </label>
             </div>
@@ -419,9 +420,9 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
                   <PieChart size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Spending by category</h3>
+                <h3 className="dash-tile-title">Gasto por categoría</h3>
               </div>
-              {!hasCategorySpend ? <p className="dash-tile-empty">No spending yet for this period.</p> : <DonutChart rows={categoryRows} money={money} />}
+              {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <DonutChart rows={categoryRows} money={money} />}
             </article>
 
             <article className="dash-tile dash-tile--white">
@@ -429,7 +430,7 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
                   <LineChart size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Spending trend</h3>
+                <h3 className="dash-tile-title">Tendencia de gasto</h3>
               </div>
               <SpendingTrendChart series={spendingTrend.series} year={spendingTrend.year} month={spendingTrend.month} money={money} />
             </article>
@@ -439,11 +440,11 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--amber" aria-hidden>
                   <Calendar size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Period total</h3>
+                <h3 className="dash-tile-title">Total del periodo</h3>
               </div>
               <p className="dash-big-number mono">{money(totalSpent)}</p>
-              <p className="dash-tile-caption">All expenses between the selected start and end dates.</p>
-              <p className="dash-tile-caption dash-tile-caption--today">Today (local date): <span className="mono">{money(todaySpent)}</span></p>
+              <p className="dash-tile-caption">Suma de gastos entre las fechas seleccionadas.</p>
+              <p className="dash-tile-caption dash-tile-caption--today">Hoy: <span className="mono">{money(todaySpent)}</span></p>
             </article>
 
             <article className="dash-tile dash-tile--white">
@@ -451,10 +452,10 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
                   <PiggyBank size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Monthly budget total</h3>
+                <h3 className="dash-tile-title">Presupuesto total del mes</h3>
               </div>
               <p className="dash-big-number mono">{money(monthTotalIncome)}</p>
-              <p className="dash-tile-caption">Always uses this calendar month (does not change with filters).</p>
+              <p className="dash-tile-caption">Siempre usa el mes calendario (no cambia con el filtro).</p>
             </article>
 
             <article className="dash-tile dash-tile--green">
@@ -462,12 +463,12 @@ export default function DashboardPage({
                 <span className="dash-tile-icon dash-tile-icon--green" aria-hidden>
                   <Wallet size={22} strokeWidth={1.75} />
                 </span>
-                <h3 className="dash-tile-title">Monthly budget remaining</h3>
+                <h3 className="dash-tile-title">Saldo del mes</h3>
               </div>
               <p className={`dash-big-number mono dash-balance dash-balance--${summaryClass(monthRemaining)}`}>{money(monthRemaining)}</p>
-              <p className="dash-tile-caption">Always uses this calendar month as your monthly budget.</p>
+              <p className="dash-tile-caption">Siempre usa el mes calendario como presupuesto mensual.</p>
               <p className="dash-tile-caption">
-                Budget: <span className="mono">{money(monthTotalIncome)}</span> • Spent this month: <span className="mono">{money(monthTotalSpent)}</span>
+                Presupuesto: <span className="mono">{money(monthTotalIncome)}</span> • Gastado este mes: <span className="mono">{money(monthTotalSpent)}</span>
               </p>
             </article>
           </div>
@@ -478,7 +479,7 @@ export default function DashboardPage({
                 <Sparkles size={20} strokeWidth={2} className="dash-sparkle-icon" />
               </span>
               <div>
-                <h2 className="dash-insights-title">Smart insights</h2>
+                <h2 className="dash-insights-title">Insights</h2>
                 <p className="dash-insights-sub">Análisis rápido según los datos de este periodo.</p>
               </div>
             </div>
@@ -496,7 +497,7 @@ export default function DashboardPage({
       ) : (
         !loading && (
           <section className="dash-card dash-empty-hint">
-            <p className="dash-muted">Crea tu primer mes con el formulario de arriba para empezar a ver el dashboard completo.</p>
+            <p className="dash-muted">Empieza registrando ingresos y gastos para ver el dashboard completo.</p>
           </section>
         )
       )}

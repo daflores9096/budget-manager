@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Save, X, Eye } from 'lucide-react';
 import { api } from './api.js';
 import Sidebar from './Sidebar.jsx';
 import DashboardPage from './DashboardPage.jsx';
+import { toLocalIsoDate } from './lib/localIsoDate.js';
 
 const MONTH_NAMES = [
   'Enero',
@@ -26,21 +27,21 @@ function money(n) {
 
 function moneyUsd(n) {
   const v = Number(n) || 0;
-  return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${v.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDateLabel(isoDate) {
   if (!isoDate) return '';
   const d = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).format(d);
+  return new Intl.DateTimeFormat('es-BO', { month: 'short', day: '2-digit', year: 'numeric' }).format(d);
 }
 
 function formatDateLong(isoDate) {
   if (!isoDate) return '';
   const d = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(d);
+  return new Intl.DateTimeFormat('es-BO', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(d);
 }
 
 function splitTitleDetail(description) {
@@ -68,7 +69,7 @@ function startOfWeekMonday(date) {
 }
 
 function toIsoDate(d) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return toLocalIsoDate(d);
 }
 
 function periodToRange(periodId, customStart, customEnd) {
@@ -107,11 +108,11 @@ function Modal({ open, title, children, onClose }) {
   if (!open) return null;
   return (
     <div className="ui-modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="ui-modal-backdrop" aria-label="Close modal" onClick={onClose} />
+      <button type="button" className="ui-modal-backdrop" aria-label="Cerrar modal" onClick={onClose} />
       <div className="ui-modal-card">
         <div className="ui-modal-head">
           <div className="ui-modal-title">{title}</div>
-          <button type="button" className="ui-icon-btn" aria-label="Close" onClick={onClose}>
+          <button type="button" className="ui-icon-btn" aria-label="Cerrar" onClick={onClose}>
             <X size={18} strokeWidth={2.2} aria-hidden />
           </button>
         </div>
@@ -134,17 +135,17 @@ function ExpenseDetails({ row }) {
   const { title, detail } = splitTitleDetail(row?.description);
   return (
     <div className="ui-detail">
-      <DetailField label="EXPENSE TITLE">{title || '—'}</DetailField>
-      <DetailField label="EXPENSE DETAIL">
+      <DetailField label="TÍTULO">{title || '—'}</DetailField>
+      <DetailField label="DETALLE">
         <span className="ui-detail-muted">{detail || '—'}</span>
       </DetailField>
       <div className="ui-detail-grid-2">
-        <DetailField label="AMOUNT">
+        <DetailField label="MONTO">
           <span className="ui-detail-money">{moneyUsd(row?.actual ?? 0)}</span>
         </DetailField>
-        <DetailField label="CATEGORY">{row?.category || '—'}</DetailField>
+        <DetailField label="CATEGORÍA">{row?.category || '—'}</DetailField>
       </div>
-      <DetailField label="DATE">{formatDateLong(row?.date) || '—'}</DetailField>
+      <DetailField label="FECHA">{formatDateLong(row?.date) || '—'}</DetailField>
     </div>
   );
 }
@@ -153,15 +154,15 @@ function IncomeDetails({ row }) {
   const { title, detail } = splitTitleDetail(row?.description);
   return (
     <div className="ui-detail">
-      <DetailField label="INCOME TITLE">{title || '—'}</DetailField>
-      <DetailField label="INCOME DETAIL">
+      <DetailField label="TÍTULO">{title || '—'}</DetailField>
+      <DetailField label="DETALLE">
         <span className="ui-detail-muted">{detail || '—'}</span>
       </DetailField>
       <div className="ui-detail-grid-2">
-        <DetailField label="AMOUNT">
+        <DetailField label="MONTO">
           <span className="ui-detail-money">{moneyUsd(row?.amount ?? 0)}</span>
         </DetailField>
-        <DetailField label="DATE">{formatDateLong(row?.date) || '—'}</DetailField>
+        <DetailField label="FECHA">{formatDateLong(row?.date) || '—'}</DetailField>
       </div>
     </div>
   );
@@ -170,7 +171,7 @@ function IncomeDetails({ row }) {
 function CategoryDetails({ row }) {
   return (
     <div className="ui-detail">
-      <DetailField label="CATEGORY NAME">{row?.name || '—'}</DetailField>
+      <DetailField label="CATEGORÍA">{row?.name || '—'}</DetailField>
     </div>
   );
 }
@@ -333,7 +334,7 @@ function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
 
       <Modal
         open={viewOpen}
-        title="Category details"
+        title="Detalle de categoría"
         onClose={() => {
           setViewOpen(false);
           setViewRow(null);
@@ -408,7 +409,7 @@ function CategorySection({ items, disabled, onChanged, setError, setLoading }) {
 }
 
 function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toLocalIsoDate());
   const [title, setTitle] = useState('');
   const [detail, setDetail] = useState('');
   const [amount, setAmount] = useState('');
@@ -492,8 +493,8 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
-            <div className="ui-card-title">Incomes</div>
-            <div className="ui-card-sub">Add and manage incomes for the selected month.</div>
+            <div className="ui-card-title">Ingresos</div>
+            <div className="ui-card-sub">Agrega y administra ingresos del mes seleccionado.</div>
           </div>
           <div className="ui-actions">
             <button className="ui-btn ui-btn--primary" type="button" onClick={() => setCreateOpen(true)}>
@@ -509,16 +510,16 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
-            <div className="ui-card-title">History</div>
-            <div className="ui-card-sub">Search title &amp; detail</div>
+            <div className="ui-card-title">Historial</div>
+            <div className="ui-card-sub">Buscar por título y detalle</div>
           </div>
           <div className="ui-toolbar">
             <label className="ui-field ui-field--toolbar">
-              <span className="ui-label">Search</span>
-              <input className="ui-input ui-input--sm" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} />
+              <span className="ui-label">Buscar</span>
+              <input className="ui-input ui-input--sm" placeholder="Buscar..." value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
             <label className="ui-field ui-field--toolbar">
-              <span className="ui-label">Rows per page</span>
+              <span className="ui-label">Filas por página</span>
               <select className="ui-input ui-input--sm" value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))}>
                 {[5, 10, 20, 50].map((n) => (
                   <option key={n} value={n}>
@@ -534,18 +535,18 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
           <table className="ui-table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Detail</th>
-                <th>Date</th>
-                <th className="ui-th-right">Amount</th>
-                <th className="ui-th-right">Actions</th>
+                <th>Título</th>
+                <th>Detalle</th>
+                <th>Fecha</th>
+                <th className="ui-th-right">Monto</th>
+                <th className="ui-th-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {paged.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="ui-muted">
-                    No items.
+                    Sin registros.
                   </td>
                 </tr>
               ) : (
@@ -578,15 +579,15 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
 
         <div className="ui-pagination">
           <div className="ui-muted">
-            Showing {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + rowsPerPage, filtered.length)} of {filtered.length}
+            Mostrando {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + rowsPerPage, filtered.length)} de {filtered.length}
           </div>
           <div className="ui-row ui-row--end">
             <button className="ui-btn ui-btn--sm ui-btn--ghost" type="button" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              ‹ Previous
+              ‹ Anterior
             </button>
-            <div className="ui-page">Page {currentPage} of {pages}</div>
+            <div className="ui-page">Página {currentPage} de {pages}</div>
             <button className="ui-btn ui-btn--sm ui-btn--ghost" type="button" disabled={currentPage >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>
-              Next ›
+              Siguiente ›
             </button>
           </div>
         </div>
@@ -604,11 +605,11 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
       >
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={addIncome}>
           <label className="ui-field">
-            <span className="ui-label">Amount</span>
+            <span className="ui-label">Monto</span>
             <input className="ui-input mono" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </label>
           <label className="ui-field ui-field--grow">
-            <span className="ui-label">Income title</span>
+            <span className="ui-label">Título</span>
             <input className="ui-input" placeholder="e.g. Salary, refund..." value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
           <label className="ui-field">
@@ -616,7 +617,7 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
             <input className="ui-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
           <label className="ui-field ui-field--full">
-            <span className="ui-label">Income detail</span>
+            <span className="ui-label">Detalle</span>
             <textarea className="ui-textarea" placeholder="Optional notes, line items, or context..." value={detail} onChange={(e) => setDetail(e.target.value)} />
           </label>
           <div className="ui-actions ui-actions--end ui-field--full">
@@ -684,7 +685,7 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
 
       <Modal
         open={viewOpen}
-        title="Income details"
+        title="Detalle de ingreso"
         onClose={() => {
           setViewOpen(false);
           setViewRow(null);
@@ -697,7 +698,7 @@ function IncomeSection({ items, disabled, onChanged, setError, setLoading }) {
 }
 
 function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setError, setLoading }) {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toLocalIsoDate());
   const [type, setType] = useState('variable');
   const [titleText, setTitleText] = useState('');
   const [detailText, setDetailText] = useState('');
@@ -810,8 +811,8 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
-            <div className="ui-card-title">Expenses</div>
-            <div className="ui-card-sub">Add and manage expenses for the selected month.</div>
+            <div className="ui-card-title">Gastos</div>
+            <div className="ui-card-sub">Agrega y administra gastos del mes seleccionado.</div>
           </div>
           <div className="ui-actions">
             <button className="ui-btn ui-btn--primary" type="button" onClick={() => setCreateOpen(true)}>
@@ -827,18 +828,18 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
       <section className="ui-card">
         <div className="ui-card-head ui-card-head--split">
           <div>
-            <div className="ui-card-title">History</div>
+            <div className="ui-card-title">Historial</div>
             <div className="ui-card-sub">Gastos (fijos y variables)</div>
           </div>
           <div className="ui-toolbar">
             <label className="ui-field ui-field--toolbar">
-              <span className="ui-label">Search title &amp; detail</span>
-              <input className="ui-input ui-input--sm" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} />
+              <span className="ui-label">Buscar por título y detalle</span>
+              <input className="ui-input ui-input--sm" placeholder="Buscar..." value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
             <label className="ui-field ui-field--toolbar">
               <span className="ui-label">Category</span>
               <select className="ui-input ui-input--sm" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
-                <option value="all">All categories</option>
+                <option value="all">Todas</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -847,7 +848,7 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
               </select>
             </label>
             <label className="ui-field ui-field--toolbar">
-              <span className="ui-label">Rows per page</span>
+              <span className="ui-label">Filas por página</span>
               <select className="ui-input ui-input--sm" value={rowsPerPage} onChange={(e) => setRowsPerPage(Number(e.target.value))}>
                 {[5, 10, 20, 50].map((n) => (
                   <option key={n} value={n}>
@@ -863,20 +864,20 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
           <table className="ui-table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Detail</th>
+                <th>Título</th>
+                <th>Detalle</th>
                 <th>Type</th>
                 <th>Category</th>
-                <th>Date</th>
-                <th className="ui-th-right">Amount</th>
-                <th className="ui-th-right">Actions</th>
+                <th>Fecha</th>
+                <th className="ui-th-right">Monto</th>
+                <th className="ui-th-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {paged.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="ui-muted">
-                    No items.
+                    Sin registros.
                   </td>
                 </tr>
               ) : (
@@ -915,15 +916,15 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
 
         <div className="ui-pagination">
           <div className="ui-muted">
-            Showing {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + rowsPerPage, filtered.length)} of {filtered.length}
+            Mostrando {filtered.length === 0 ? 0 : start + 1}–{Math.min(start + rowsPerPage, filtered.length)} de {filtered.length}
           </div>
           <div className="ui-row ui-row--end">
             <button className="ui-btn ui-btn--sm ui-btn--ghost" type="button" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              ‹ Previous
+              ‹ Anterior
             </button>
-            <div className="ui-page">Page {currentPage} of {pages}</div>
+            <div className="ui-page">Página {currentPage} de {pages}</div>
             <button className="ui-btn ui-btn--sm ui-btn--ghost" type="button" disabled={currentPage >= pages} onClick={() => setPage((p) => Math.min(pages, p + 1))}>
-              Next ›
+              Siguiente ›
             </button>
           </div>
         </div>
@@ -943,11 +944,11 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
       >
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={addExpense}>
           <label className="ui-field">
-            <span className="ui-label">Amount</span>
+            <span className="ui-label">Monto</span>
             <input className="ui-input mono" inputMode="decimal" placeholder="0.00" value={actual} onChange={(e) => setActual(e.target.value)} />
           </label>
           <label className="ui-field ui-field--grow">
-            <span className="ui-label">Expense title</span>
+            <span className="ui-label">Título</span>
             <input className="ui-input" placeholder="e.g. Groceries, gas..." value={titleText} onChange={(e) => setTitleText(e.target.value)} />
           </label>
           <label className="ui-field">
@@ -974,17 +975,17 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
           {type === 'fixed' ? (
             <>
               <label className="ui-field">
-                <span className="ui-label">Expected</span>
+                <span className="ui-label">Esperado</span>
                 <input className="ui-input mono" inputMode="decimal" placeholder="0.00" value={expected} onChange={(e) => setExpected(e.target.value)} />
               </label>
               <label className="ui-field ui-field--check">
-                <span className="ui-label">Paid</span>
+                <span className="ui-label">Pagado</span>
                 <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} />
               </label>
             </>
           ) : null}
           <label className="ui-field ui-field--full">
-            <span className="ui-label">Expense detail</span>
+            <span className="ui-label">Detalle</span>
             <textarea className="ui-textarea" placeholder="Optional notes, line items, or context..." value={detailText} onChange={(e) => setDetailText(e.target.value)} />
           </label>
           <div className="ui-actions ui-actions--end ui-field--full">
@@ -1086,7 +1087,7 @@ function ExpensesUnifiedSection({ items, categories, disabled, onChanged, setErr
 
       <Modal
         open={viewOpen}
-        title="Expense details"
+        title="Detalle de gasto"
         onClose={() => {
           setViewOpen(false);
           setViewRow(null);

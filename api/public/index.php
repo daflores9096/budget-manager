@@ -35,6 +35,24 @@ try {
         exit;
     }
 
+    if (str_starts_with($path, '/api/auth')) {
+        $handler = require $routesDir . 'auth.php';
+        $handler($method, $path);
+        exit;
+    }
+
+    if (str_starts_with($path, '/api/users')) {
+        $handler = require $routesDir . 'users.php';
+        $handler($method, $path);
+        exit;
+    }
+
+    // Require auth for all API routes except health/auth.
+    if (str_starts_with($path, '/api/') && !str_starts_with($path, '/api/auth') && $path !== '/api/health') {
+        require_auth();
+        ensure_ledger_user_schema();
+    }
+
     if ($path === '/api/health' && $method === 'GET') {
         db()->query('SELECT 1');
         json_response(['ok' => true]);
@@ -211,10 +229,10 @@ try {
         }
 
         $inc = db()->prepare(
-            'SELECT id, entry_date AS date, description, amount
-             FROM incomes
-             WHERE entry_date BETWEEN ? AND ?
-             ORDER BY entry_date ASC, id ASC'
+            'SELECT i.id, i.entry_date AS date, i.description, i.amount
+             FROM incomes i
+             WHERE i.entry_date BETWEEN ? AND ?
+             ORDER BY i.entry_date ASC, i.id ASC'
         );
         $inc->execute([$start, $end]);
         $incomes = $inc->fetchAll();
@@ -225,11 +243,13 @@ try {
         unset($i);
 
         $exp = db()->prepare(
-            'SELECT id, expense_type AS type, entry_date AS date, description,
-                    expected_amount AS expected, actual_amount AS actual, category, paid
-             FROM expenses
-             WHERE entry_date BETWEEN ? AND ?
-             ORDER BY entry_date ASC, id ASC'
+            'SELECT e.id, e.expense_type AS type, e.entry_date AS date, e.description,
+                    e.expected_amount AS expected, e.actual_amount AS actual, e.category, e.paid,
+                    u.username AS username
+             FROM expenses e
+             LEFT JOIN users u ON u.id = e.user_id
+             WHERE e.entry_date BETWEEN ? AND ?
+             ORDER BY e.entry_date ASC, e.id ASC'
         );
         $exp->execute([$start, $end]);
         $expenses = $exp->fetchAll();
@@ -325,6 +345,8 @@ try {
     }
 
     if (preg_match('#^/api/months/(\d+)/incomes$#', $path, $m) && $method === 'POST') {
+        $u = require_auth();
+        $userId = (int) ($u['id'] ?? 0);
         $monthId = (int) $m[1];
         ensure_month_exists($monthId);
         $body = read_json_body();
@@ -340,14 +362,16 @@ try {
             exit;
         }
         $stmt = db()->prepare(
-            'INSERT INTO incomes (budget_month_id, entry_date, description, amount) VALUES (?,?,?,?)'
+            'INSERT INTO incomes (budget_month_id, entry_date, description, amount, user_id) VALUES (?,?,?,?,?)'
         );
-        $stmt->execute([$monthId, $date, $description, $amount]);
+        $stmt->execute([$monthId, $date, $description, $amount, $userId]);
         json_response(['id' => (int) db()->lastInsertId()], 201);
         exit;
     }
 
     if ($path === '/api/incomes' && $method === 'POST') {
+        $u = require_auth();
+        $userId = (int) ($u['id'] ?? 0);
         $body = read_json_body();
         $date = (string) ($body['date'] ?? '');
         $description = trim((string) ($body['description'] ?? ''));
@@ -363,8 +387,8 @@ try {
         [$y, $mth] = array_map('intval', explode('-', $date, 3));
         $monthId = get_or_create_month_id($y, $mth);
 
-        $stmt = db()->prepare('INSERT INTO incomes (budget_month_id, entry_date, description, amount) VALUES (?,?,?,?)');
-        $stmt->execute([$monthId, $date, $description, $amount]);
+        $stmt = db()->prepare('INSERT INTO incomes (budget_month_id, entry_date, description, amount, user_id) VALUES (?,?,?,?,?)');
+        $stmt->execute([$monthId, $date, $description, $amount, $userId]);
         json_response(['id' => (int) db()->lastInsertId()], 201);
         exit;
     }
@@ -417,6 +441,8 @@ try {
     }
 
     if (preg_match('#^/api/months/(\d+)/expenses$#', $path, $m) && $method === 'POST') {
+        $u = require_auth();
+        $userId = (int) ($u['id'] ?? 0);
         $monthId = (int) $m[1];
         ensure_month_exists($monthId);
         $body = read_json_body();
@@ -452,15 +478,17 @@ try {
         }
 
         $stmt = db()->prepare(
-            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid)
-             VALUES (?,?,?,?,?,?,?,?)'
+            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid, user_id)
+             VALUES (?,?,?,?,?,?,?,?,?)'
         );
-        $stmt->execute([$monthId, $type, $date, $description, $expected, $actual, $category, $paid]);
+        $stmt->execute([$monthId, $type, $date, $description, $expected, $actual, $category, $paid, $userId]);
         json_response(['id' => (int) db()->lastInsertId()], 201);
         exit;
     }
 
     if ($path === '/api/expenses' && $method === 'POST') {
+        $u = require_auth();
+        $userId = (int) ($u['id'] ?? 0);
         $body = read_json_body();
         $type = (string) ($body['type'] ?? 'variable');
         if ($type !== 'fixed' && $type !== 'variable') {
@@ -497,10 +525,10 @@ try {
         $monthId = get_or_create_month_id($y, $mth);
 
         $stmt = db()->prepare(
-            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid)
-             VALUES (?,?,?,?,?,?,?,?)'
+            'INSERT INTO expenses (budget_month_id, expense_type, entry_date, description, expected_amount, actual_amount, category, paid, user_id)
+             VALUES (?,?,?,?,?,?,?,?,?)'
         );
-        $stmt->execute([$monthId, $type, $date, $description, $expected, $actual, $category, $paid]);
+        $stmt->execute([$monthId, $type, $date, $description, $expected, $actual, $category, $paid, $userId]);
         json_response(['id' => (int) db()->lastInsertId()], 201);
         exit;
     }

@@ -9,15 +9,19 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
     volumes:
       - db_data:/var/lib/mysql
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - ./database/docker-init/01-load-schema.sh:/docker-entrypoint-initdb.d/01-load-schema.sh:ro
+      - ./database/schema_tables.sql:/init-helper/schema_tables.sql:ro
+    # Sin "ports": MySQL solo en la red Docker. Evita en Synology el error
+    # "driver failed programming external connectivity" (3306 ocupado por MariaDB/DSM).
+    # Para DBeaver/HeidiSQL desde el PC: docker compose -f docker-compose.yml -f docker-compose.db-port.yml up -d
+    # MYSQL_PWD evita -p en línea de comandos (caracteres raros en la contraseña) y suele ser más fiable.
+    # start_period largo: en NAS el primer init de InnoDB + import del schema puede superar 15–30 s.
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 15s
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h 127.0.0.1 -uroot --silent"]
+      interval: 10s
+      timeout: 10s
+      retries: 36
+      start_period: 120s
 
   api:
     build:
@@ -30,6 +34,9 @@ services:
       DB_NAME: ${MYSQL_DATABASE:-budget_manager}
       DB_USER: ${MYSQL_USER:-budget}
       DB_PASS: ${MYSQL_PASSWORD:-budget_secret}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:18080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      ALLOW_BOOTSTRAP: ${ALLOW_BOOTSTRAP:-1}
     depends_on:
       db:
         condition: service_healthy
@@ -47,7 +54,9 @@ services:
       dockerfile: docker/web/Dockerfile
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-8080}:80"
+      # Synology / otras apps suelen usar 8080; por defecto 18080 para evitar
+      # "driver failed programming external connectivity".
+      - "${WEB_PORT:-18080}:80"
     depends_on:
       - api
 

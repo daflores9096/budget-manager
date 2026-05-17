@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 return static function (string $method, string $path): void {
+    // Auth required for all category operations.
+    // Only admin can mutate categories.
     if ($path === '/api/categories' && $method === 'GET') {
+        require_auth();
         ensure_default_categories_exist();
         try {
             $stmt = db()->query('SELECT id, name FROM categories ORDER BY name ASC');
@@ -22,6 +25,7 @@ return static function (string $method, string $path): void {
     }
 
     if ($path === '/api/categories' && $method === 'POST') {
+        require_role('admin');
         ensure_default_categories_exist();
         $body = read_json_body();
         $name = normalize_category_name((string) ($body['name'] ?? ''));
@@ -48,6 +52,7 @@ return static function (string $method, string $path): void {
         $id = (int) $m[1];
 
         if ($method === 'PATCH') {
+            require_role('admin');
             $body = read_json_body();
             $name = normalize_category_name((string) ($body['name'] ?? ''));
             if ($name === '' || mb_strlen($name) > 64) {
@@ -79,6 +84,7 @@ return static function (string $method, string $path): void {
         }
 
         if ($method === 'DELETE') {
+            require_role('admin');
             $row = db()->prepare('SELECT id, name FROM categories WHERE id = ?');
             $row->execute([$id]);
             $existing = $row->fetch();

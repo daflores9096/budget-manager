@@ -79,6 +79,14 @@ Then open `http://localhost:9090`.
 Invoke-RestMethod "http://localhost:8080/api/health" -Method Get
 ```
 
+---
+
+## Mobile testing (PWA) and future Android
+
+This project is prepared to be tested as a **PWA** (installable web app) on Android, and later wrapped as a native app if needed.
+
+- See [`ANDROID.md`](ANDROID.md)
+
 You should see something like `ok: true` (or equivalent JSON).
 
 ---
@@ -170,6 +178,23 @@ If something still looks wrong, force recreate:
 ```powershell
 docker compose up -d --force-recreate api web
 ```
+
+---
+
+## 7. Creating the first admin user (dev bootstrap)
+
+On a fresh database, you need at least one **admin** to manage users, categories, and fixed expense templates.
+
+This project includes a **dev-only** endpoint to create the first admin (enabled by default):
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8080/api/auth/bootstrap" -Method Post -ContentType "application/json" -Body (ConvertTo-Json @{ email="admin@local.test"; name="Admin"; password="admin123" } -Compress)
+```
+
+- If an admin already exists, the endpoint returns HTTP 409.
+- You can disable bootstrap by setting `ALLOW_BOOTSTRAP=0` on the API container.
+
+Then sign in at: `http://localhost:8080/login`
 
 ---
 

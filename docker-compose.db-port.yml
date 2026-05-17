@@ -1,0 +1,10 @@
+# Opcional: publica MySQL en el host (p. ej. DBeaver en tu PC).
+# Synology: usa un puerto libre; el 3306 del NAS suele estar ocupado.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.db-port.yml up -d
+#
+# En .env puedes definir MYSQL_PORT (por defecto 3307).
+services:
+  db:
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
