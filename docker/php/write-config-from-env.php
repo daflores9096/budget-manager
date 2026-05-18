@@ -36,3 +36,14 @@ if (file_put_contents($path, $content) === false) {
     fwrite(STDERR, "write-config-from-env: no se pudo escribir {$path}\n");
     exit(1);
 }
+
+fwrite(
+    STDERR,
+    sprintf(
+        "write-config-from-env: db host=%s name=%s user=%s pass_len=%d\n",
+        $cfg['db']['host'],
+        $cfg['db']['name'],
+        $cfg['db']['user'],
+        strlen($cfg['db']['pass'])
+    )
+);

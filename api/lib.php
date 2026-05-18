@@ -19,10 +19,27 @@ function load_config(): array
     $local = $apiDir . DIRECTORY_SEPARATOR . 'config.local.php';
     $example = $apiDir . DIRECTORY_SEPARATOR . 'config.example.php';
 
+    // En Docker, config.local.php se genera al arrancar el contenedor (write-config-from-env.php).
+    // En Synology/mod_php, getenv('DB_PASS') en Apache a veces devuelve vacío o un valor distinto
+    // y pisaba la contraseña correcta del archivo → error 1045. Si existe config.local.php, usarlo.
     if (is_file($local)) {
         /** @var array $cfg */
         $cfg = require $local;
-    } elseif (is_file($example)) {
+        $db = $cfg['db'] ?? [];
+
+        return [
+            'db' => [
+                'host' => (string) ($db['host'] ?? 'db'),
+                'port' => (int) ($db['port'] ?? 3306),
+                'name' => (string) ($db['name'] ?? 'budget_manager'),
+                'user' => (string) ($db['user'] ?? 'budget'),
+                'pass' => (string) ($db['pass'] ?? ''),
+                'charset' => (string) ($db['charset'] ?? 'utf8mb4'),
+            ],
+        ];
+    }
+
+    if (is_file($example)) {
         /** @var array $cfg */
         $cfg = require $example;
     } else {

@@ -2,6 +2,9 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
+  # Synology Container Manager: el .env debe estar en la misma carpeta que este compose.
+    env_file:
+      - .env
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-budget_manager}
       MYSQL_USER: ${MYSQL_USER:-budget}
@@ -28,6 +31,8 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       DB_HOST: db
       DB_PORT: 3306
