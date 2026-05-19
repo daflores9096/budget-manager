@@ -1,24 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Save, Trash2, KeyRound, Pencil } from 'lucide-react';
 import { api } from '../api.js';
-
-function Modal({ open, title, children, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="ui-modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="ui-modal-backdrop" aria-label="Cerrar modal" onClick={onClose} />
-      <div className="ui-modal-card">
-        <div className="ui-modal-head">
-          <div className="ui-modal-title">{title}</div>
-          <button type="button" className="ui-icon-btn" aria-label="Cerrar" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <div className="ui-modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
+import Modal from '../components/Modal.jsx';
 
 export default function UsersPage({ ctx }) {
   const [users, setUsers] = useState([]);
@@ -210,11 +193,13 @@ export default function UsersPage({ ctx }) {
       <Modal
         open={createOpen}
         title="Crear usuario"
+        busy={ctx.loading}
         onClose={() => {
           setCreateOpen(false);
           setTempPassword('');
         }}
       >
+        <fieldset className="ui-form-fieldset" disabled={ctx.loading}>
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={createUser}>
           <label className="ui-field ui-field--grow">
             <span className="ui-label">Usuario</span>
@@ -247,10 +232,11 @@ export default function UsersPage({ ctx }) {
               <span className="ui-btn-icon" aria-hidden>
                 <Save size={18} strokeWidth={2.2} />
               </span>
-              Crear
+              {ctx.loading ? 'Guardando…' : 'Crear'}
             </button>
           </div>
         </form>
+        </fieldset>
         {tempPassword ? (
           <div className="panel" style={{ marginTop: '0.85rem' }}>
             <div className="ui-muted">Contraseña temporal (dev):</div>
@@ -264,12 +250,14 @@ export default function UsersPage({ ctx }) {
       <Modal
         open={editOpen}
         title="Editar usuario"
+        busy={ctx.loading}
         onClose={() => {
           setEditOpen(false);
           setEditingUser(null);
         }}
       >
         {editingUser ? (
+          <fieldset className="ui-form-fieldset" disabled={ctx.loading}>
           <form
             className="ui-form-grid ui-form-grid--ledger"
             onSubmit={async (e) => {
@@ -303,16 +291,18 @@ export default function UsersPage({ ctx }) {
                 <span className="ui-btn-icon" aria-hidden>
                   <Save size={18} strokeWidth={2.2} />
                 </span>
-                Guardar
+                {ctx.loading ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </form>
+          </fieldset>
         ) : null}
       </Modal>
 
       <Modal
         open={resetPasswordOpen}
         title="Restablecer contraseña"
+        busy={ctx.loading}
         onClose={() => {
           setResetPasswordOpen(false);
           setResetPasswordUser(null);
@@ -320,6 +310,7 @@ export default function UsersPage({ ctx }) {
         }}
       >
         {resetPasswordUser ? (
+          <fieldset className="ui-form-fieldset" disabled={ctx.loading}>
           <form
             className="ui-form-grid ui-form-grid--ledger"
             onSubmit={async (e) => {
@@ -359,10 +350,11 @@ export default function UsersPage({ ctx }) {
                 <span className="ui-btn-icon" aria-hidden>
                   <KeyRound size={18} strokeWidth={2.2} />
                 </span>
-                Restablecer contraseña
+                {ctx.loading ? 'Guardando…' : 'Restablecer contraseña'}
               </button>
             </div>
           </form>
+          </fieldset>
         ) : null}
         {tempPassword ? (
           <div className="panel" style={{ marginTop: '0.85rem' }}>

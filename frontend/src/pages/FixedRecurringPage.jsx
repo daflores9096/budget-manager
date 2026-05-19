@@ -1,24 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, Save, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save } from 'lucide-react';
 import { api } from '../api.js';
-
-function Modal({ open, title, children, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="ui-modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="ui-modal-backdrop" aria-label="Cerrar modal" onClick={onClose} />
-      <div className="ui-modal-card">
-        <div className="ui-modal-head">
-          <div className="ui-modal-title">{title}</div>
-          <button type="button" className="ui-icon-btn" aria-label="Cerrar" onClick={onClose}>
-            <X size={18} strokeWidth={2.2} aria-hidden />
-          </button>
-        </div>
-        <div className="ui-modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
+import Modal from '../components/Modal.jsx';
 
 export default function FixedRecurringPage({ ctx }) {
   const categories = ctx.categories || [];
@@ -199,7 +182,8 @@ export default function FixedRecurringPage({ ctx }) {
         </div>
       </section>
 
-      <Modal open={createOpen} title="Agregar gasto fijo" onClose={() => setCreateOpen(false)}>
+      <Modal open={createOpen} title="Agregar gasto fijo" busy={ctx.loading} onClose={() => setCreateOpen(false)}>
+        <fieldset className="ui-form-fieldset" disabled={ctx.loading}>
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={createTemplate}>
           <label className="ui-field ui-field--grow">
             <span className="ui-label">Título</span>
@@ -223,17 +207,19 @@ export default function FixedRecurringPage({ ctx }) {
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setCreateOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={ctx.loading}>
               <span className="ui-btn-icon" aria-hidden>
                 <Plus size={18} strokeWidth={2.2} />
               </span>
-              Guardar
+              {ctx.loading ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
 
-      <Modal open={editOpen} title="Editar gasto fijo" onClose={() => setEditOpen(false)}>
+      <Modal open={editOpen} title="Editar gasto fijo" busy={ctx.loading} onClose={() => setEditOpen(false)}>
+        <fieldset className="ui-form-fieldset" disabled={ctx.loading}>
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={saveEdit}>
           <label className="ui-field ui-field--grow">
             <span className="ui-label">Título</span>
@@ -257,14 +243,15 @@ export default function FixedRecurringPage({ ctx }) {
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setEditOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={ctx.loading}>
               <span className="ui-btn-icon" aria-hidden>
                 <Save size={18} strokeWidth={2.2} />
               </span>
-              Guardar
+              {ctx.loading ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
     </div>
   );

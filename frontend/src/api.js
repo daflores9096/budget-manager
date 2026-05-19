@@ -36,16 +36,25 @@ export async function api(path, options = {}) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
   const url = joinUrl(baseUrl, path);
   const token = getAccessToken();
-  const res = await fetch(url, {
-    ...rest,
-    credentials: rest.credentials ?? 'include',
-    headers: {
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      ...rest,
+      credentials: rest.credentials ?? 'include',
+      headers: {
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(headers || {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    const hint =
+      import.meta.env.DEV
+        ? ' Comprueba que Docker esté arriba (docker compose up -d) y que el proxy de Vite apunte al puerto WEB_PORT (p. ej. 18080).'
+        : ' Abre la app en el mismo host/puerto donde corre el contenedor web (p. ej. http://localhost:18080).';
+    throw new Error(`No se pudo conectar con la API.${hint}`);
+  }
   const text = await res.text();
   let data = null;
   try {

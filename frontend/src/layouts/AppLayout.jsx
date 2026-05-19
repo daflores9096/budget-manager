@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from '../Sidebar.jsx';
+import SavingOverlay from '../components/SavingOverlay.jsx';
 import { api, clearAccessToken } from '../api.js';
 import { toLocalIsoDate } from '../lib/localIsoDate.js';
 
@@ -305,6 +306,7 @@ export default function AppLayout() {
         ) : null}
 
         <div className={`main-content ${activeView === 'dashboard' ? 'main-content--wide' : ''}`}>
+          {loading ? <SavingOverlay label="Procesando…" /> : null}
           {error ? <div className="panel error">{error}</div> : null}
           <Outlet context={ctx} />
         </div>

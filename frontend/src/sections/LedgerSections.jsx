@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Trash2, Save, X, Eye, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 import { api } from '../api.js';
 import { toLocalIsoDate } from '../lib/localIsoDate.js';
+import Modal from '../components/Modal.jsx';
 
 function moneyUsd(n) {
   const v = Number(n) || 0;
@@ -32,24 +33,6 @@ function splitTitleDetail(description) {
     title: parts[0] || '',
     detail: parts.slice(1).join(' — ').trim(),
   };
-}
-
-function Modal({ open, title, children, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="ui-modal" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="ui-modal-backdrop" aria-label="Cerrar modal" onClick={onClose} />
-      <div className="ui-modal-card">
-        <div className="ui-modal-head">
-          <div className="ui-modal-title">{title}</div>
-          <button type="button" className="ui-icon-btn" aria-label="Cerrar" onClick={onClose}>
-            <X size={18} strokeWidth={2.2} aria-hidden />
-          </button>
-        </div>
-        <div className="ui-modal-body">{children}</div>
-      </div>
-    </div>
-  );
 }
 
 function DetailField({ label, children }) {
@@ -590,6 +573,7 @@ export function IncomeSection({ items, disabled, onChanged, setError, setLoading
       <Modal
         open={createOpen}
         title="Agregar ingreso"
+        busy={disabled}
         onClose={() => {
           setCreateOpen(false);
           setTitle('');
@@ -597,6 +581,7 @@ export function IncomeSection({ items, disabled, onChanged, setError, setLoading
           setAmount('');
         }}
       >
+        <fieldset className="ui-form-fieldset" disabled={disabled}>
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={addIncome}>
           <label className="ui-field">
             <span className="ui-label">Monto</span>
@@ -618,29 +603,32 @@ export function IncomeSection({ items, disabled, onChanged, setError, setLoading
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setCreateOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
               <span className="ui-btn-icon" aria-hidden>
                 <Plus size={18} strokeWidth={2.2} />
               </span>
-              Agregar
+              {disabled ? 'Guardando…' : 'Agregar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
 
       <Modal
         open={editOpen}
         title="Editar ingreso"
+        busy={disabled}
         onClose={() => {
           setEditOpen(false);
           setEditingRow(null);
         }}
       >
+        <fieldset className="ui-form-fieldset" disabled={disabled}>
         <form
           className="ui-form-grid ui-form-grid--ledger"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (!editingRow) return;
+            if (!editingRow || disabled) return;
             const description = [title.trim(), detail.trim()].filter(Boolean).join(' — ');
             await patchIncome(editingRow.id, { date, description, amount: Number(amount) });
             setEditOpen(false);
@@ -667,14 +655,15 @@ export function IncomeSection({ items, disabled, onChanged, setError, setLoading
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setEditOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
               <span className="ui-btn-icon" aria-hidden>
                 <Save size={18} strokeWidth={2.2} />
               </span>
-              Guardar
+              {disabled ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
 
       <Modal
@@ -1146,12 +1135,14 @@ export function ExpensesUnifiedSection({
       <Modal
         open={payOpen}
         title="Registrar pago — gasto fijo"
+        busy={disabled}
         onClose={() => {
           setPayOpen(false);
           setPayItem(null);
         }}
       >
         {payItem ? (
+          <fieldset className="ui-form-fieldset" disabled={disabled}>
           <form className="ui-form-grid ui-form-grid--ledger" onSubmit={submitRecurringPay}>
             <DetailField label="TÍTULO">{payItem.title}</DetailField>
             <div className="ui-detail-grid-2">
@@ -1174,29 +1165,32 @@ export function ExpensesUnifiedSection({
               <input className="ui-input" type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
             </label>
             <div className="ui-actions ui-actions--end ui-field--full">
-              <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setPayOpen(false)}>
+              <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setPayOpen(false)} disabled={disabled}>
                 Cancelar
               </button>
-              <button className="ui-btn ui-btn--primary" type="submit">
+              <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
                 <span className="ui-btn-icon" aria-hidden>
                   <Save size={18} strokeWidth={2.2} />
                 </span>
-                Guardar
+                {disabled ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </form>
+          </fieldset>
         ) : null}
       </Modal>
 
       <Modal
         open={manageOpen}
         title="Editar gasto fijo"
+        busy={disabled}
         onClose={() => {
           setManageOpen(false);
           setManageItem(null);
         }}
       >
         {manageItem ? (
+          <fieldset className="ui-form-fieldset" disabled={disabled}>
           <form className="ui-form-grid ui-form-grid--ledger" onSubmit={saveRecurringTemplate}>
             <label className="ui-field ui-field--grow">
               <span className="ui-label">Título</span>
@@ -1217,23 +1211,25 @@ export function ExpensesUnifiedSection({
               </select>
             </label>
             <div className="ui-actions ui-actions--end ui-field--full">
-              <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setManageOpen(false)}>
+              <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setManageOpen(false)} disabled={disabled}>
                 Cancelar
               </button>
-              <button className="ui-btn ui-btn--primary" type="submit">
+              <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
                 <span className="ui-btn-icon" aria-hidden>
                   <Save size={18} strokeWidth={2.2} />
                 </span>
-                Guardar
+                {disabled ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </form>
+          </fieldset>
         ) : null}
       </Modal>
 
       <Modal
         open={createOpen}
         title="Agregar gasto"
+        busy={disabled}
         onClose={() => {
           setCreateOpen(false);
           setTitleText('');
@@ -1243,6 +1239,7 @@ export function ExpensesUnifiedSection({
           setPaid(false);
         }}
       >
+        <fieldset className="ui-form-fieldset" disabled={disabled}>
         <form className="ui-form-grid ui-form-grid--ledger" onSubmit={addExpense}>
           <label className="ui-field">
             <span className="ui-label">Monto</span>
@@ -1293,29 +1290,32 @@ export function ExpensesUnifiedSection({
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setCreateOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
               <span className="ui-btn-icon" aria-hidden>
                 <Plus size={18} strokeWidth={2.2} />
               </span>
-              Agregar
+              {disabled ? 'Guardando…' : 'Agregar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
 
       <Modal
         open={editOpen}
         title="Editar gasto"
+        busy={disabled}
         onClose={() => {
           setEditOpen(false);
           setEditingRow(null);
         }}
       >
+        <fieldset className="ui-form-fieldset" disabled={disabled}>
         <form
           className="ui-form-grid ui-form-grid--ledger"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (!editingRow) return;
+            if (!editingRow || disabled) return;
             const description = [titleText.trim(), detailText.trim()].filter(Boolean).join(' — ');
             const patch = { date, description, category, actual: Number(actual || 0), type };
             if (editingRow.type === 'fixed' || type === 'fixed') {
@@ -1376,14 +1376,15 @@ export function ExpensesUnifiedSection({
             <button className="ui-btn ui-btn--ghost" type="button" onClick={() => setEditOpen(false)}>
               Cancelar
             </button>
-            <button className="ui-btn ui-btn--primary" type="submit">
+            <button className="ui-btn ui-btn--primary" type="submit" disabled={disabled}>
               <span className="ui-btn-icon" aria-hidden>
                 <Save size={18} strokeWidth={2.2} />
               </span>
-              Guardar
+              {disabled ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
+        </fieldset>
       </Modal>
 
       <Modal

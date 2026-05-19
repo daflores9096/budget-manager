@@ -12,8 +12,8 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
     volumes:
       - db_data:/var/lib/mysql
-      - ./database/docker-init/01-load-schema.sh:/docker-entrypoint-initdb.d/01-load-schema.sh:ro
-      - ./database/schema_tables.sql:/init-helper/schema_tables.sql:ro
+      # .sql evita scripts .sh con CRLF en Windows (error /bin/bash^M: bad interpreter).
+      - ./database/schema_tables.sql:/docker-entrypoint-initdb.d/02-schema.sql:ro
     # Sin "ports": MySQL solo en la red Docker. Evita en Synology el error
     # "driver failed programming external connectivity" (3306 ocupado por MariaDB/DSM).
     # Para DBeaver/HeidiSQL desde el PC: docker compose -f docker-compose.yml -f docker-compose.db-port.yml up -d

@@ -134,4 +134,4 @@ INSERT IGNORE INTO categories (name) VALUES
 
 -- Admin por defecto (login: admin o admin@localhost / admin1234). Cambiar en producción.
 INSERT IGNORE INTO users (username, email, name, role, password_hash, disabled) VALUES
-  ('admin', 'admin@localhost', 'Admin', 'admin', '$2y$10$eJszuwR.tpr82vCn5.m3Mef6k83RZqyXfng2VC89fayM5l8tWRgl.', 0);
+  ('admin', 'admin@localhost', 'Admin', 'admin', '$2y$10$6jdtnwIDTFNAuFFPnpHuyOYNLui/kf03sNOc53WA/D/qHWfDaG4Xa', 0);

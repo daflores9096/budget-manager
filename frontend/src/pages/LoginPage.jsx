@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, setAccessToken } from '../api.js';
 
@@ -8,6 +9,7 @@ export default function LoginPage() {
   const next = useMemo(() => params.get('next') || '/dashboard', [params]);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +49,24 @@ export default function LoginPage() {
         </label>
         <label className="ui-field">
           <span className="ui-label">Contraseña</span>
-          <input className="ui-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          <div className="ui-password-wrap">
+            <input
+              className="ui-input ui-input--password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className="ui-password-toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={18} strokeWidth={2.2} aria-hidden /> : <Eye size={18} strokeWidth={2.2} aria-hidden />}
+            </button>
+          </div>
         </label>
         <button className="ui-btn ui-btn--primary auth-submit" type="submit" disabled={loading}>
           Ingresar
