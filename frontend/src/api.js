@@ -11,6 +11,11 @@ function joinUrl(base, path) {
 
 const TOKEN_KEY = 'bm_access_token';
 
+export function apiUrl(path) {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  return joinUrl(baseUrl, path);
+}
+
 export function setAccessToken(token) {
   if (!token) {
     localStorage.removeItem(TOKEN_KEY);
@@ -33,20 +38,20 @@ export function clearAccessToken() {
 
 export async function api(path, options = {}) {
   const { body, headers, ...rest } = options;
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
-  const url = joinUrl(baseUrl, path);
+  const url = apiUrl(path);
   const token = getAccessToken();
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   let res;
   try {
     res = await fetch(url, {
       ...rest,
       credentials: rest.credentials ?? 'include',
       headers: {
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(body !== undefined && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(headers || {}),
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
     });
   } catch {
     const hint =

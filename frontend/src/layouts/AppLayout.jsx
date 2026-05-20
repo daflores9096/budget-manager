@@ -47,6 +47,7 @@ function viewFromPath(pathname) {
   if (pathname.startsWith('/gastos-fijos')) return 'gastos_fijos';
   if (pathname.startsWith('/categories')) return 'categories';
   if (pathname.startsWith('/users')) return 'users';
+  if (pathname.startsWith('/backups')) return 'backups';
   return 'dashboard';
 }
 
@@ -82,7 +83,9 @@ export default function AppLayout() {
             ? 'Gastos fijos'
             : activeView === 'users'
               ? 'Usuarios'
-              : 'Categorías';
+              : activeView === 'backups'
+                ? 'Respaldos'
+                : 'Categorías';
 
   const loadCategories = useCallback(async () => {
     const data = await api('/api/categories');
@@ -158,7 +161,7 @@ export default function AppLayout() {
         }
         // Frontend route guard (UX). Backend RBAC is still the source of truth.
         const p = location.pathname || '/';
-        if (user.role !== 'admin' && (p.startsWith('/categories') || p.startsWith('/gastos-fijos') || p.startsWith('/users'))) {
+        if (user.role !== 'admin' && (p.startsWith('/categories') || p.startsWith('/gastos-fijos') || p.startsWith('/users') || p.startsWith('/backups'))) {
           navigate('/dashboard', { replace: true });
           return;
         }
@@ -245,6 +248,7 @@ export default function AppLayout() {
       gastos_fijos: '/gastos-fijos',
       categorias: '/categories',
       users: '/users',
+      backups: '/backups',
       incomes: '/incomes',
       expenses: '/expenses',
       categories: '/categories',
@@ -280,7 +284,9 @@ export default function AppLayout() {
                   ? 'gastos_fijos'
                   : activeView === 'users'
                     ? 'users'
-                    : 'categorias'
+                    : activeView === 'backups'
+                      ? 'backups'
+                      : 'categorias'
         }
         role={user?.role || 'appuser'}
         user={user}
