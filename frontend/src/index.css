@@ -90,7 +90,7 @@ button {
 }
 
 .sidebar-user {
-  padding: 0.15rem 0.65rem 0.8rem;
+  padding: 0.15rem 0.65rem 0.65rem;
   margin-bottom: 0.15rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
@@ -110,7 +110,6 @@ button {
   color: #0f172a;
   line-height: 1.3;
   word-break: break-word;
-  margin-bottom: 0.6rem;
 }
 
 .sidebar-menu-label {
@@ -166,18 +165,18 @@ button {
   color: var(--green);
 }
 
-.sidebar-logout {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.55rem 0.65rem;
-  background: rgba(15, 23, 42, 0.02);
-  color: #0f172a;
-  font-weight: 700;
+.sidebar-logout-link {
+  margin-top: 0.25rem;
+  color: #991b1b;
 }
 
-.sidebar-logout:hover {
-  background: rgba(15, 23, 42, 0.04);
+.sidebar-logout-link .sidebar-link-icon {
+  color: #991b1b;
+}
+
+.sidebar-logout-link:hover {
+  color: #7f1d1d;
+  background: rgba(153, 27, 27, 0.06);
 }
 
 .main-area {
@@ -200,6 +199,10 @@ button {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.main-header--dashboard {
+  display: none;
 }
 
 .main-header-left {
@@ -267,15 +270,6 @@ button {
   color: var(--text);
 }
 
-.header-menu-btn--light {
-  background: #ffffff;
-}
-
-.dashboard-mobile-header {
-  display: none;
-  padding: 0.65rem 1rem 0;
-}
-
 @media (max-width: 900px) {
   .app-shell {
     position: relative;
@@ -320,8 +314,8 @@ button {
     display: inline-flex;
   }
 
-  .dashboard-mobile-header {
-    display: block;
+  .main-header--dashboard {
+    display: flex;
   }
 }
 
@@ -333,6 +327,12 @@ button {
 
 .dashboard-hero {
   margin-bottom: 1.1rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-hero {
+    display: none;
+  }
 }
 
 .dashboard-hero-top {

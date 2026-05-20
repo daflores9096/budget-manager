@@ -103,9 +103,6 @@ export default function Sidebar({ active, onNavigate, open, onClose, role = 'app
           <div className="sidebar-user">
             <div className="sidebar-user-caption">Conectado como</div>
             <div className="sidebar-user-name">{who}</div>
-            <button type="button" className="sidebar-logout" onClick={onLogout}>
-              Cerrar sesión
-            </button>
           </div>
         ) : null}
         <div className="sidebar-menu-label">Menú</div>
@@ -121,6 +118,16 @@ export default function Sidebar({ active, onNavigate, open, onClose, role = 'app
               <span>{item.label}</span>
             </button>
           ))}
+          <button type="button" className="sidebar-link sidebar-logout-link" onClick={onLogout}>
+            <span className="sidebar-link-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
+            </span>
+            Cerrar sesión
+          </button>
         </nav>
       </aside>
     </>

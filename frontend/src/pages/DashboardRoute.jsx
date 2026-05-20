@@ -30,7 +30,6 @@ export default function DashboardRoute() {
       money={(n) => (Number(n) || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       summaryClass={(remaining) => (remaining > 0 ? 'good' : remaining < 0 ? 'bad' : 'warn')}
       monthNames={[]}
-      setSidebarOpen={ctx.setSidebarOpen}
     />
   );
 }

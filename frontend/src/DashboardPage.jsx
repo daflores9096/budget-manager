@@ -3,7 +3,6 @@ import {
   Calendar,
   Lightbulb,
   LineChart,
-  Menu,
   PieChart,
   PiggyBank,
   Sparkles,
@@ -291,7 +290,6 @@ export default function DashboardPage({
   money,
   summaryClass,
   monthNames,
-  setSidebarOpen,
 }) {
   const expenses = detail?.expenses || [];
   const expenseCount = expenses.length;
@@ -358,12 +356,6 @@ export default function DashboardPage({
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-mobile-header">
-        <button type="button" className="header-menu-btn header-menu-btn--light" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}>
-          <Menu size={22} strokeWidth={2} aria-hidden />
-        </button>
-      </div>
-
       <header className="dashboard-hero">
         <div className="dashboard-hero-top">
           <div className="dashboard-kicker">

@@ -296,8 +296,7 @@ export default function AppLayout() {
         onClose={() => setSidebarOpen(false)}
       />
       <div className="main-area">
-        {activeView !== 'dashboard' ? (
-          <header className="main-header">
+        <header className={`main-header${activeView === 'dashboard' ? ' main-header--dashboard' : ''}`}>
             <div className="main-header-left">
               <button type="button" className="header-menu-btn" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -308,8 +307,7 @@ export default function AppLayout() {
                 <div className="main-title">{pageTitle}</div>
               </div>
             </div>
-          </header>
-        ) : null}
+        </header>
 
         <div className={`main-content ${activeView === 'dashboard' ? 'main-content--wide' : ''}`}>
           {loading ? <SavingOverlay label="Procesando…" /> : null}
