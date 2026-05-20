@@ -7,6 +7,7 @@ import ExpensesRoute from './pages/ExpensesRoute.jsx';
 import CategoriesRoute from './pages/CategoriesRoute.jsx';
 import FixedRecurringRoute from './pages/FixedRecurringRoute.jsx';
 import UsersRoute from './pages/UsersRoute.jsx';
+import BackupsRoute from './pages/BackupsRoute.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: 'gastos-fijos', element: <FixedRecurringRoute /> },
       { path: 'categories', element: <CategoriesRoute /> },
       { path: 'users', element: <UsersRoute /> },
+      { path: 'backups', element: <BackupsRoute /> },
       { path: '*', element: <Navigate to="/dashboard" replace /> },
     ],
   },

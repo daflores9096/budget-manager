@@ -47,6 +47,12 @@ try {
         exit;
     }
 
+    if (str_starts_with($path, '/api/backups')) {
+        $handler = require $routesDir . 'backups.php';
+        $handler($method, $path);
+        exit;
+    }
+
     // Require auth for all API routes except health/auth.
     if (str_starts_with($path, '/api/') && !str_starts_with($path, '/api/auth') && $path !== '/api/health') {
         require_auth();
