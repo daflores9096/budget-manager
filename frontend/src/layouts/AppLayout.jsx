@@ -58,6 +58,7 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -182,6 +183,7 @@ export default function AppLayout() {
 
   async function onLogout() {
     setError('');
+    setLoggingOut(true);
     try {
       setLoading(true);
       await api('/api/auth/logout', { method: 'POST' });
@@ -192,6 +194,7 @@ export default function AppLayout() {
       setUser(null);
       setLoading(false);
       navigate('/login', { replace: true });
+      setLoggingOut(false);
     }
   }
 
@@ -272,6 +275,7 @@ export default function AppLayout() {
 
   return (
     <div className="app-shell">
+      {loggingOut ? <SavingOverlay className="ui-app-saving" label="Cerrando sesión…" /> : null}
       <Sidebar
         active={
           activeView === 'dashboard'
@@ -310,7 +314,7 @@ export default function AppLayout() {
         </header>
 
         <div className={`main-content ${activeView === 'dashboard' ? 'main-content--wide' : ''}`}>
-          {loading ? <SavingOverlay label="Procesando…" /> : null}
+          {loading && !loggingOut ? <SavingOverlay label="Procesando…" /> : null}
           {error ? <div className="panel error">{error}</div> : null}
           <Outlet context={ctx} />
         </div>

@@ -253,6 +253,11 @@ button {
   pointer-events: all;
 }
 
+.ui-app-saving {
+  position: fixed;
+  z-index: 100;
+}
+
 .main-content--wide {
   max-width: 1240px;
 }
