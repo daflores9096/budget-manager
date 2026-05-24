@@ -717,6 +717,8 @@ export function ExpensesUnifiedSection({
   setLoading,
   pendingRecurringFixed = [],
   canManageRecurringFixed = false,
+  initialCategoryFilter = 'all',
+  filterSummary = '',
 }) {
   const [date, setDate] = useState(() => toLocalIsoDate());
   const [type, setType] = useState('variable');
@@ -744,7 +746,7 @@ export function ExpensesUnifiedSection({
   const [manageCategory, setManageCategory] = useState(categories[0] || 'Varios');
 
   const [query, setQuery] = useState('');
-  const [catFilter, setCatFilter] = useState('all');
+  const [catFilter, setCatFilter] = useState(initialCategoryFilter || 'all');
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState('date');
@@ -765,6 +767,13 @@ export function ExpensesUnifiedSection({
   useEffect(() => {
     setCatFilter((prev) => (prev !== 'all' && categories.length && !categories.includes(prev) ? 'all' : prev));
   }, [categories]);
+
+  useEffect(() => {
+    const next = initialCategoryFilter || 'all';
+    if (next === 'all' || !categories.length || categories.includes(next)) {
+      setCatFilter(next);
+    }
+  }, [categories, initialCategoryFilter]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -940,7 +949,7 @@ export function ExpensesUnifiedSection({
         <div className="ui-card-head ui-card-head--split">
           <div>
             <div className="ui-card-title">Gastos</div>
-            <div className="ui-card-sub">Gastos (fijos y variables)</div>
+            <div className="ui-card-sub">{filterSummary || 'Gastos (fijos y variables)'}</div>
           </div>
           <div className="ui-actions">
             <button className="ui-btn ui-btn--primary" type="button" onClick={() => setCreateOpen(true)}>

@@ -1,4 +1,4 @@
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import DashboardPage from '../DashboardPage.jsx';
 
 function formatDateLabel(isoDate) {
@@ -15,6 +15,19 @@ function formatIsoRangeLabel(startIso, endIso) {
 
 export default function DashboardRoute() {
   const ctx = useOutletContext();
+  const navigate = useNavigate();
+
+  function openExpensesForCategory(category) {
+    const params = new URLSearchParams({ category });
+    const start = ctx.dashboardDetail?.range?.start || ctx.dashboardStart;
+    const end = ctx.dashboardDetail?.range?.end || ctx.dashboardEnd;
+    if (start && end) {
+      params.set('start', start);
+      params.set('end', end);
+    }
+    navigate(`/expenses?${params.toString()}`);
+  }
+
   return (
     <DashboardPage
       detail={ctx.dashboardDetail}
@@ -30,6 +43,7 @@ export default function DashboardRoute() {
       money={(n) => (Number(n) || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       summaryClass={(remaining) => (remaining > 0 ? 'good' : remaining < 0 ? 'bad' : 'warn')}
       monthNames={[]}
+      onCategoryClick={openExpensesForCategory}
     />
   );
 }

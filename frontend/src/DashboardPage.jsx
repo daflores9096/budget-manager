@@ -183,7 +183,7 @@ function SpendingTrendChart({ series, year, month, money }) {
   );
 }
 
-function DonutChart({ rows, money }) {
+function DonutChart({ rows, money, onCategoryClick }) {
   const [tip, setTip] = useState(null);
 
   const size = 168;
@@ -243,11 +243,21 @@ function DonutChart({ rows, money }) {
                   strokeWidth="1"
                   strokeLinejoin="round"
                   className="dash-donut-seg"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver gastos de ${seg.name}`}
                   onMouseEnter={(e) => {
                     setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
                   }}
                   onMouseMove={(e) => {
                     setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
+                  }}
+                  onClick={() => onCategoryClick?.(seg.name)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onCategoryClick?.(seg.name);
+                    }
                   }}
                 >
                   <title>{`${seg.name}: ${money(seg.amt)}`}</title>
@@ -290,6 +300,7 @@ export default function DashboardPage({
   money,
   summaryClass,
   monthNames,
+  onCategoryClick,
 }) {
   const expenses = detail?.expenses || [];
   const expenseCount = expenses.length;
@@ -414,7 +425,7 @@ export default function DashboardPage({
                 </span>
                 <h3 className="dash-tile-title">Gasto por categoría</h3>
               </div>
-              {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <DonutChart rows={categoryRows} money={money} />}
+              {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <DonutChart rows={categoryRows} money={money} onCategoryClick={onCategoryClick} />}
             </article>
 
             <article className="dash-tile dash-tile--white">
