@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import {
+  BarChart3,
   Calendar,
   Lightbulb,
   LineChart,
-  PieChart,
   PiggyBank,
   Sparkles,
   Wallet,
@@ -30,21 +30,6 @@ function aggregateByCategory(expenses) {
     map.set(c, (map.get(c) || 0) + v);
   }
   return [...map.entries()].sort((a, b) => b[1] - a[1]);
-}
-
-function polar(cx, cy, rad, ang) {
-  return [cx + rad * Math.cos(ang), cy + rad * Math.sin(ang)];
-}
-
-/** Donut slice from angle a0 to a1 (radians), clockwise, y-down SVG coords. */
-function donutSlicePath(cx, cy, rInner, rOuter, a0, a1) {
-  if (a1 - a0 < 0.0001) return '';
-  const large = a1 - a0 > Math.PI ? 1 : 0;
-  const [x0, y0] = polar(cx, cy, rOuter, a0);
-  const [x1, y1] = polar(cx, cy, rOuter, a1);
-  const [x2, y2] = polar(cx, cy, rInner, a1);
-  const [x3, y3] = polar(cx, cy, rInner, a0);
-  return `M ${x0} ${y0} A ${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
 }
 
 function dailySpendingSeries(expenses, year, month) {
@@ -183,90 +168,44 @@ function SpendingTrendChart({ series, year, month, money }) {
   );
 }
 
-function DonutChart({ rows, money, onCategoryClick }) {
+function CategoryBarChart({ rows, money, onCategoryClick }) {
   const [tip, setTip] = useState(null);
 
-  const size = 168;
-  const stroke = 22;
-  const cx = size / 2;
-  const cy = size / 2;
-  const rMid = (size - stroke) / 2;
-  const rOuter = rMid + stroke / 2;
-  const rInner = Math.max(8, rMid - stroke / 2);
-  const colors = ['#7c3aed', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe', '#f5f3ff'];
-
-  const slices = useMemo(() => {
-    const data = rows
+  const chart = useMemo(() => {
+    const items = rows
       .filter(([, amt]) => (Number(amt) || 0) > 0)
-      .slice(0, 6)
+      .slice(0, 8)
       .map(([name, amt]) => ({ name, amt: Number(amt) || 0 }));
-    const total = data.reduce((acc, x) => acc + x.amt, 0);
-    if (total <= 0) return { data, total: 0, items: [] };
-    let a = 0;
-    const items = data.map((d, idx) => {
-      const sweep = (d.amt / total) * 2 * Math.PI;
-      const a0 = a;
-      const a1 = a + sweep;
-      a = a1;
-      return {
-        ...d,
-        idx,
-        a0,
-        a1,
-        path: donutSlicePath(cx, cy, rInner, rOuter, a0, a1),
-        color: colors[idx % colors.length],
-      };
-    });
-    return { data, total, items };
+    const max = Math.max(1, ...items.map((x) => x.amt));
+    return { items, max };
   }, [rows]);
 
-  const { data, total, items } = slices;
+  const { items, max } = chart;
 
   return (
-    <div className="dash-donut">
-      <svg
-        className="dash-donut-svg"
-        viewBox={`0 0 ${size} ${size}`}
-        role="img"
-        aria-label="Spending by category"
-        onMouseLeave={() => setTip(null)}
-      >
-        <circle cx={cx} cy={cy} r={(rInner + rOuter) / 2} fill="none" stroke="#ede9fe" strokeWidth={rOuter - rInner} />
-        <g transform={`rotate(-90 ${cx} ${cy})`}>
-          {total > 0
-            ? items.map((seg) => (
-                <path
-                  key={`${seg.idx}-${seg.name}`}
-                  d={seg.path}
-                  fill={seg.color}
-                  stroke="#ffffff"
-                  strokeWidth="1"
-                  strokeLinejoin="round"
-                  className="dash-donut-seg"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Ver gastos de ${seg.name}`}
-                  onMouseEnter={(e) => {
-                    setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
-                  }}
-                  onMouseMove={(e) => {
-                    setTip({ name: seg.name, amt: seg.amt, x: e.clientX, y: e.clientY });
-                  }}
-                  onClick={() => onCategoryClick?.(seg.name)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onCategoryClick?.(seg.name);
-                    }
-                  }}
-                >
-                  <title>{`${seg.name}: ${money(seg.amt)}`}</title>
-                </path>
-              ))
-            : null}
-        </g>
-        <circle cx={cx} cy={cy} r={rInner - 1} fill="#ffffff" />
-      </svg>
+    <div className="dash-bar-chart" onMouseLeave={() => setTip(null)}>
+      {items.map((item, idx) => {
+        const pct = Math.max(4, (item.amt / max) * 100);
+        return (
+          <button
+            key={`${idx}-${item.name}`}
+            type="button"
+            className="dash-bar-row"
+            aria-label={`Ver gastos de ${item.name}`}
+            onMouseEnter={(e) => setTip({ name: item.name, amt: item.amt, x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setTip({ name: item.name, amt: item.amt, x: e.clientX, y: e.clientY })}
+            onClick={() => onCategoryClick?.(item.name)}
+          >
+            <span className="dash-bar-row-head">
+              <span className="dash-bar-label">{item.name}</span>
+              <span className="dash-bar-amount mono">{money(item.amt)}</span>
+            </span>
+            <span className="dash-bar-track" aria-hidden>
+              <span className="dash-bar-fill" style={{ width: `${pct}%` }} />
+            </span>
+          </button>
+        );
+      })}
       {tip ? (
         <div
           className="dash-donut-tooltip"
@@ -278,10 +217,6 @@ function DonutChart({ rows, money, onCategoryClick }) {
           <span className="dash-donut-tooltip-amt mono">{money(tip.amt)}</span>
         </div>
       ) : null}
-      <div className="dash-donut-legend" aria-hidden>
-        <span className="dash-donut-dot" />
-        <span className="dash-donut-label">{data[0]?.name ?? '—'}</span>
-      </div>
     </div>
   );
 }
@@ -421,11 +356,11 @@ export default function DashboardPage({
             <article className="dash-tile dash-tile--white">
               <div className="dash-tile-head">
                 <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
-                  <PieChart size={22} strokeWidth={1.75} />
+                  <BarChart3 size={22} strokeWidth={1.75} />
                 </span>
                 <h3 className="dash-tile-title">Gasto por categoría</h3>
               </div>
-              {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <DonutChart rows={categoryRows} money={money} onCategoryClick={onCategoryClick} />}
+              {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <CategoryBarChart rows={categoryRows} money={money} onCategoryClick={onCategoryClick} />}
             </article>
 
             <article className="dash-tile dash-tile--white">
