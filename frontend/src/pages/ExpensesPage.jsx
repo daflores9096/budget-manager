@@ -30,16 +30,16 @@ export default function ExpensesPage({ ctx }) {
     let cancelled = false;
     (async () => {
       try {
-        if (!hasRangeFilter) {
-          setRangeDetail(null);
-          return;
-        }
         ctx.setError('');
         ctx.setLoading(true);
-        const data = await loadRange();
-        if (cancelled || !data) return;
+        if (hasRangeFilter) {
+          await Promise.all([loadRange(), ctx.reloadPendingRecurringFixed?.()]);
+        } else {
+          setRangeDetail(null);
+          await Promise.all([ctx.reloadMonthly(), ctx.reloadPendingRecurringFixed?.()]);
+        }
       } catch (err) {
-        if (!cancelled) ctx.setError(err.message || 'Error al cargar gastos filtrados');
+        if (!cancelled) ctx.setError(err.message || 'Error al cargar gastos');
       } finally {
         if (!cancelled) ctx.setLoading(false);
       }
@@ -47,7 +47,7 @@ export default function ExpensesPage({ ctx }) {
     return () => {
       cancelled = true;
     };
-  }, [ctx.setError, ctx.setLoading, hasRangeFilter, loadRange]);
+  }, [ctx.reloadMonthly, ctx.reloadPendingRecurringFixed, ctx.setError, ctx.setLoading, hasRangeFilter, loadRange]);
 
   const filterSummary = useMemo(() => {
     const parts = [];

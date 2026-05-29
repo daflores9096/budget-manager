@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS incomes (
   amount DECIMAL(12,2) NOT NULL,
   CONSTRAINT fk_incomes_month FOREIGN KEY (budget_month_id)
     REFERENCES budget_months (id) ON DELETE CASCADE,
-  KEY idx_incomes_month (budget_month_id)
+  KEY idx_incomes_month (budget_month_id),
+  KEY idx_incomes_entry_date (entry_date)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -45,7 +46,9 @@ CREATE TABLE IF NOT EXISTS expenses (
   CONSTRAINT fk_expenses_month FOREIGN KEY (budget_month_id)
     REFERENCES budget_months (id) ON DELETE CASCADE,
   KEY idx_expenses_month_type (budget_month_id, expense_type),
-  KEY idx_expenses_user (user_id)
+  KEY idx_expenses_user (user_id),
+  KEY idx_expenses_entry_date (entry_date),
+  KEY idx_expenses_category_date (category, entry_date)
 ) ENGINE=InnoDB;
 
 -- Plantillas de gastos fijos mensuales (mismo monto esperado cada mes)

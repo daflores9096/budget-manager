@@ -225,7 +225,8 @@ docker compose up --build -d
 budget-manager/
 ├── api/                 # PHP (lib, public/index.php, routes/)
 ├── database/
-│   └── schema.sql       # Initial schema (applied on first MySQL volume init)
+│   ├── schema.sql       # Initial schema (applied on first MySQL volume init)
+│   └── migrations/      # One-off SQL for existing databases (see file comments)
 ├── docker/
 │   ├── php/             # API Dockerfile
 │   └── web/             # Frontend Dockerfile + nginx.conf

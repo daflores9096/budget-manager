@@ -5,6 +5,7 @@ import {
   Lightbulb,
   LineChart,
   PiggyBank,
+  ReceiptText,
   Sparkles,
   Wallet,
 } from 'lucide-react';
@@ -65,6 +66,16 @@ function formatTrendDayLabel(iso) {
   const dt = new Date(`${iso}T12:00:00`);
   if (Number.isNaN(dt.getTime())) return iso;
   return new Intl.DateTimeFormat('es-BO', { weekday: 'short', day: 'numeric', month: 'short' }).format(dt);
+}
+
+function formatExpenseDate(iso) {
+  const dt = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(dt.getTime())) return iso || '—';
+  return new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short' }).format(dt);
+}
+
+function expenseTitle(description) {
+  return String(description || '').split('—')[0]?.trim() || 'Sin descripción';
 }
 
 function SpendingTrendChart({ series, year, month, money }) {
@@ -221,6 +232,40 @@ function CategoryBarChart({ rows, money, onCategoryClick }) {
   );
 }
 
+function RecentExpensesList({ expenses, money }) {
+  const rows = useMemo(
+    () =>
+      [...(expenses || [])]
+        .sort((a, b) => {
+          const idCmp = (Number(b.id) || 0) - (Number(a.id) || 0);
+          if (idCmp !== 0) return idCmp;
+          return String(b.date || '').localeCompare(String(a.date || ''));
+        })
+        .slice(0, 5),
+    [expenses],
+  );
+
+  if (rows.length === 0) {
+    return <p className="dash-tile-empty">Sin gastos registrados en este periodo.</p>;
+  }
+
+  return (
+    <ul className="dash-recent-list">
+      {rows.map((row) => (
+        <li key={row.id || `${row.date}-${row.description}`} className="dash-recent-row">
+          <div className="dash-recent-main">
+            <span className="dash-recent-title">{expenseTitle(row.description)}</span>
+            <span className="dash-recent-meta">
+              {formatExpenseDate(row.date)} · {row.category || 'Varios'}
+            </span>
+          </div>
+          <span className="dash-recent-amount mono">{money(row.actual)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function DashboardPage({
   detail,
   monthlyDetail,
@@ -361,6 +406,16 @@ export default function DashboardPage({
                 <h3 className="dash-tile-title">Gasto por categoría</h3>
               </div>
               {!hasCategorySpend ? <p className="dash-tile-empty">Sin gastos en este periodo.</p> : <CategoryBarChart rows={categoryRows} money={money} onCategoryClick={onCategoryClick} />}
+            </article>
+
+            <article className="dash-tile dash-tile--white">
+              <div className="dash-tile-head">
+                <span className="dash-tile-icon dash-tile-icon--muted" aria-hidden>
+                  <ReceiptText size={22} strokeWidth={1.75} />
+                </span>
+                <h3 className="dash-tile-title">Últimos 5 gastos</h3>
+              </div>
+              <RecentExpensesList expenses={expenses} money={money} />
             </article>
 
             <article className="dash-tile dash-tile--white">

@@ -94,6 +94,14 @@ export default function AppLayout() {
     setCategoryItems(data.category_items || []);
   }, []);
 
+  const currentCalendarMonthRange = useCallback(() => {
+    const now = new Date();
+    return {
+      start: toIsoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+      end: toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    };
+  }, []);
+
   const loadDashboard = useCallback(async () => {
     setError('');
     const { start, end } = periodToRange(dashboardPeriod, dashboardStart, dashboardEnd);
@@ -107,14 +115,38 @@ export default function AppLayout() {
   }, [dashboardPeriod, dashboardStart, dashboardEnd]);
 
   const loadMonthly = useCallback(async () => {
-    // Always current calendar month (ignores dashboard filters)
-    const now = new Date();
-    const s = new Date(now.getFullYear(), now.getMonth(), 1);
-    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const qs = new URLSearchParams({ start: toIsoDate(s), end: toIsoDate(e) }).toString();
+    const { start, end } = currentCalendarMonthRange();
+    const qs = new URLSearchParams({ start, end }).toString();
     const data = await api(`/api/transactions?${qs}`);
     setMonthlyDetail(data);
-  }, []);
+  }, [currentCalendarMonthRange]);
+
+  const loadDashboardPageData = useCallback(async () => {
+    setError('');
+    const { start, end } = periodToRange(dashboardPeriod, dashboardStart, dashboardEnd);
+    if (dashboardPeriod === 'date_range') {
+      setDashboardStart(start);
+      setDashboardEnd(end);
+    }
+    const monthRange = currentCalendarMonthRange();
+    const sameAsCurrentMonth = start === monthRange.start && end === monthRange.end;
+    const dashboardQs = new URLSearchParams({ start, end }).toString();
+
+    if (sameAsCurrentMonth) {
+      const data = await api(`/api/transactions?${dashboardQs}`);
+      setDashboardDetail(data);
+      setMonthlyDetail(data);
+      return;
+    }
+
+    const monthQs = new URLSearchParams({ start: monthRange.start, end: monthRange.end }).toString();
+    const [dashboardData, monthlyData] = await Promise.all([
+      api(`/api/transactions?${dashboardQs}`),
+      api(`/api/transactions?${monthQs}`),
+    ]);
+    setDashboardDetail(dashboardData);
+    setMonthlyDetail(monthlyData);
+  }, [dashboardPeriod, dashboardStart, dashboardEnd, currentCalendarMonthRange]);
 
   const loadPendingRecurringFixed = useCallback(async () => {
     const now = new Date();
@@ -151,35 +183,20 @@ export default function AppLayout() {
   }, [loadCategories]);
 
   useEffect(() => {
-    let cancelled = false;
     (async () => {
-      try {
-        if (!authReady) return;
-        if (!user) {
-          const next = `${location.pathname || '/'}${location.search || ''}`;
-          navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true });
-          return;
-        }
-        // Frontend route guard (UX). Backend RBAC is still the source of truth.
-        const p = location.pathname || '/';
-        if (user.role !== 'admin' && (p.startsWith('/categories') || p.startsWith('/gastos-fijos') || p.startsWith('/users') || p.startsWith('/backups'))) {
-          navigate('/dashboard', { replace: true });
-          return;
-        }
-        setLoading(true);
-        await loadDashboard();
-        await loadMonthly();
-        await loadPendingRecurringFixed();
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Error al cargar el dashboard');
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (!authReady) return;
+      if (!user) {
+        const next = `${location.pathname || '/'}${location.search || ''}`;
+        navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true });
+        return;
+      }
+      // Frontend route guard (UX). Backend RBAC is still the source of truth.
+      const p = location.pathname || '/';
+      if (user.role !== 'admin' && (p.startsWith('/categories') || p.startsWith('/gastos-fijos') || p.startsWith('/users') || p.startsWith('/backups'))) {
+        navigate('/dashboard', { replace: true });
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [authReady, user, navigate, location.pathname, location.search, loadDashboard, loadMonthly, loadPendingRecurringFixed]);
+  }, [authReady, user, navigate, location.pathname, location.search]);
 
   async function onLogout() {
     setError('');
@@ -221,6 +238,7 @@ export default function AppLayout() {
       pendingRecurringFixed,
       reloadDashboard: loadDashboard,
       reloadMonthly: loadMonthly,
+      reloadDashboardPageData: loadDashboardPageData,
       reloadPendingRecurringFixed: loadPendingRecurringFixed,
     }),
     [
@@ -239,6 +257,7 @@ export default function AppLayout() {
       pendingRecurringFixed,
       loadDashboard,
       loadMonthly,
+      loadDashboardPageData,
       loadPendingRecurringFixed,
     ],
   );

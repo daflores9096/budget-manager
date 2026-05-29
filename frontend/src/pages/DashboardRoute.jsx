@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import DashboardPage from '../DashboardPage.jsx';
 
@@ -16,6 +17,31 @@ function formatIsoRangeLabel(startIso, endIso) {
 export default function DashboardRoute() {
   const ctx = useOutletContext();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        ctx.setError('');
+        ctx.setLoading(true);
+        await ctx.reloadDashboardPageData();
+      } catch (err) {
+        if (!cancelled) ctx.setError(err.message || 'Error al cargar el dashboard');
+      } finally {
+        if (!cancelled) ctx.setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    ctx.reloadDashboardPageData,
+    ctx.dashboardPeriod,
+    ctx.dashboardStart,
+    ctx.dashboardEnd,
+    ctx.setError,
+    ctx.setLoading,
+  ]);
 
   function openExpensesForCategory(category) {
     const params = new URLSearchParams({ category });
