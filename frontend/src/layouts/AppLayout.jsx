@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from '../Sidebar.jsx';
 import SavingOverlay from '../components/SavingOverlay.jsx';
-import { api, clearAccessToken } from '../api.js';
+import { AUTH_EXPIRED_EVENT, api, clearAccessToken } from '../api.js';
 import { toLocalIsoDate } from '../lib/localIsoDate.js';
 
 function toIsoDate(d) {
@@ -25,6 +25,11 @@ function periodToRange(periodId, customStart, customEnd) {
     const s = startOfWeekMonday(now);
     const e = new Date(s);
     e.setDate(e.getDate() + 6);
+    return { start: toIsoDate(s), end: toIsoDate(e) };
+  }
+  if (periodId === 'last_month') {
+    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const e = new Date(now.getFullYear(), now.getMonth(), 0);
     return { start: toIsoDate(s), end: toIsoDate(e) };
   }
   if (periodId === 'last_6_months') {
@@ -156,6 +161,21 @@ export default function AppLayout() {
     setPendingRecurringFixed(data.pending || []);
   }, []);
 
+  const redirectToLogin = useCallback(() => {
+    clearAccessToken();
+    setUser(null);
+    setError('');
+    setLoading(false);
+    setLoggingOut(false);
+    const next = `${location.pathname || '/'}${location.search || ''}`;
+    navigate(`/login?next=${encodeURIComponent(next)}`, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    window.addEventListener(AUTH_EXPIRED_EVENT, redirectToLogin);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, redirectToLogin);
+  }, [redirectToLogin]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -169,6 +189,13 @@ export default function AppLayout() {
         }
         await loadCategories();
       } catch (e) {
+        if (e?.status === 401) {
+          if (!cancelled) {
+            setAuthReady(true);
+            redirectToLogin();
+          }
+          return;
+        }
         if (!cancelled) setError(e.message || 'No se pudo conectar con la API');
       } finally {
         if (!cancelled) {
@@ -180,7 +207,7 @@ export default function AppLayout() {
     return () => {
       cancelled = true;
     };
-  }, [loadCategories]);
+  }, [loadCategories, redirectToLogin]);
 
   useEffect(() => {
     (async () => {

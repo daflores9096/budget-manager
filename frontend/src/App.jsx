@@ -82,6 +82,11 @@ function periodToRange(periodId, customStart, customEnd) {
     e.setDate(e.getDate() + 6);
     return { start: toIsoDate(s), end: toIsoDate(e) };
   }
+  if (periodId === 'last_month') {
+    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const e = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start: toIsoDate(s), end: toIsoDate(e) };
+  }
   if (periodId === 'last_6_months') {
     const s = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);

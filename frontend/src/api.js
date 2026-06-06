@@ -10,6 +10,7 @@ function joinUrl(base, path) {
 }
 
 const TOKEN_KEY = 'bm_access_token';
+export const AUTH_EXPIRED_EVENT = 'bm:auth-expired';
 
 export function apiUrl(path) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -68,6 +69,12 @@ export async function api(path, options = {}) {
     data = { raw: text };
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAccessToken();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+      }
+    }
     const parts = [data?.error, data?.detail].filter((p) => p != null && String(p).trim() !== '');
     const unique = [...new Set(parts.map(String))];
     const msg = unique.length ? unique.join(' — ') : `HTTP ${res.status}`;

@@ -367,6 +367,7 @@ export default function DashboardPage({
               <option value="today">Hoy</option>
               <option value="this_week">Esta semana</option>
               <option value="this_month">Este mes</option>
+              <option value="last_month">Mes pasado</option>
               <option value="last_6_months">Últimos 6 meses</option>
               <option value="date_range">Rango de fechas</option>
             </select>
